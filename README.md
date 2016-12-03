@@ -3,6 +3,8 @@ lloovia
 
 LLOOVIA: Load Level based OptimizatiOn of VIrtual machine Allocation
 
+This repository contains the supplementary material for the paper: "Optimal allocation of virtual machines in multi-cloud environments with reserved and on-demand pricing"
+
 Project Organization
 ------------
 
@@ -10,40 +12,35 @@ Project Organization
     ├── Makefile           <- Makefile with commands like `make data` or `make train`
     ├── README.md          <- The top-level README for developers using this project.
     ├── data
-    │   ├── external       <- Data from third party sources.
-    │   ├── interim        <- Intermediate data that has been transformed.
-    │   ├── processed      <- The final, canonical data sets for modeling.
-    │   └── raw            <- The original, immutable data dump.
+    │   ├── external       <- Unused ?
+    │   ├── interim        <- Pickle files with intermediate results
+    │   ├── processed      <- Processed wikipedia traces, prices of providers, etc
+    │   └── raw            <- Synthetic traces, wikipedia raw traces, VM types and prices as reported by cloud providers
     │
-    ├── docs               <- A default Sphinx project; see sphinx-doc.org for details
+    ├── docs               <- Developer's documentation of Lloovia modules
     │
-    ├── models             <- Trained and serialized models, model predictions, or model summaries
+    ├── models             <- Unused?
     │
-    ├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-    │                         the creator's initials, and a short `-` delimited description, e.g.
-    │                         `1.0-jqp-initial-data-exploration`.
+    ├── notebooks          <- Jupyter notebooks with presentation of experiments and results
     │
-    ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
+    ├── references         <- Unused ?
     │
-    ├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-    │   └── figures        <- Generated graphics and figures to be used in reporting
+    ├── reports            <- HTML or PDF versions of Notebooks
+    │   └── figures        <- Generated graphics and figures to be used in paper
     │
     ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
     │                         generated with `pip freeze > requirements.txt`
     │
-    ├── src                <- Source code for use in this project.
+    ├── src                <- Source code of Llovia and auxiliar python scripts
     │   ├── __init__.py    <- Makes src a Python module
     │   │
     │   ├── data           <- Scripts to download or generate data
     │   │   └── make_dataset.py
     │   │
-    │   ├── features       <- Scripts to turn raw data into features for modeling
-    │   │   └── build_features.py
+    │   ├── process_data   <- Scripts to turn raw data into the input required
+    │   │   └── build_processed.py
     │   │
-    │   ├── models         <- Scripts to train models and then use trained models to make
-    │   │   │                 predictions
-    │   │   ├── predict_model.py
-    │   │   └── train_model.py
+    │   ├── solve          <- Lloovia implementation
     │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
     │       └── visualize.py
@@ -53,4 +50,3 @@ Project Organization
 
 --------
 
-<p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
