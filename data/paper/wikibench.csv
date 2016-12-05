@@ -1,0 +1,7 @@
+instance_names,instance_performances
+c3.large,18000
+c3.xlarge,27000
+c3.2xlarge,46000
+m3.medium,9000
+m3.large,11000
+m3.xlarge,39000

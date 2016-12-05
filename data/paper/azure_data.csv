@@ -1,0 +1,16 @@
+,Type,Cores,Disk,Ram,Tier,price-eu,price-us-east-2
+0,A5,2,135,14,Standard tier,0.248,0.22
+1,A6,4,285,28,Standard tier,0.496,0.44
+2,Basic_A0,1,20,0.75,Basic tier,0.018,0.018
+3,Basic_A1,1,40,1.75,Basic tier,0.047,0.044
+4,Basic_A2,2,60,3.5,Basic tier,0.094,0.088
+5,Basic_A3,4,120,7,Basic tier,0.188,0.176
+6,ExtraSmall,1,20,0.75,Standard tier,0.02,0.02
+7,Large,4,285,7,Standard tier,0.24,0.24
+8,Medium,2,135,3.5,Standard tier,0.12,0.12
+9,Small,1,70,1.75,Standard tier,0.06,0.06
+10,Standard_D11_v2,2,100,14,D_v2-series,0.185,0.166
+11,Standard_D12_v2,4,200,28,D_v2-series,0.371,0.333
+12,Standard_D1_v2,1,50,3.5,D_v2-series,0.069,0.064
+13,Standard_D2_v2,2,100,7,D_v2-series,0.139,0.127
+14,Standard_D3_v2,4,200,14,D_v2-series,0.277,0.255
