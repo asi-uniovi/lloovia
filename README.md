@@ -15,7 +15,8 @@ Project Organization
     │   ├── external       <- Unused ?
     │   ├── interim        <- Pickle files with intermediate results
     │   ├── processed      <- Processed wikipedia traces, prices of providers, etc
-    │   └── raw            <- Synthetic traces, wikipedia raw traces, VM types and prices as reported by cloud providers
+    │   ├── paper          <- Processed data used in the paper (for replication)
+    │   └── raw            <- To download raw data
     │
     ├── docs               <- Developer's documentation of Lloovia modules
     │
@@ -33,18 +34,10 @@ Project Organization
     │
     ├── src                <- Source code of Llovia and auxiliar python scripts
     │   ├── __init__.py    <- Makes src a Python module
-    │   │
     │   ├── data           <- Scripts to download or generate data
-    │   │   └── make_dataset.py
-    │   │
     │   ├── process_data   <- Scripts to turn raw data into the input required
-    │   │   └── build_processed.py
-    │   │
     │   ├── solve          <- Lloovia implementation
-    │   │
     │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    │       └── visualize.py
-    │
     └── tox.ini            <- tox file with settings for running tox; see tox.testrun.org
 
 

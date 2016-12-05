@@ -47,27 +47,20 @@ coverage.xml
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-
 # Sphinx documentation
 docs/_build/
 
-# PyBuilder
-target/
+# Snakemake internals
+.snakemake/
 
 # DotEnv configuration
 .env
 
-# Database
-*.db
-*.rdb
-
-# Pycharm
-.idea
-
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
-# exclude data from source control by default
-/data/
+# exclude some data from source control by default
+/data/processed
+/data/raw
+/data/interim
+/data/external
