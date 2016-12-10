@@ -15,9 +15,11 @@ BENCHMARKS = ['oldisim', 'wikibench']
 # These names are created from templates using the data above
 synthetic_LTWP = expand("data/processed/traces_synthetic_{case}_LTWP.csv", case=CASES) 
 synthetic_STWP = expand("data/processed/traces_synthetic_{case}_STWP.csv", case=CASES) 
+synthetic_example = "data/processed/traces_example_simple.csv"
 processed_wikipedia = "data/processed/traces_en_wikipedia.csv"
 processed_providers = expand("data/processed/providers_{provider}_data.csv", provider=PROVIDERS)
 processed_benchmarks = expand("data/processed/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)
+
 
 # Lists with the names of the input files used in the paper
 # These are equivalent to the names above, but are already pre-generated
@@ -25,6 +27,7 @@ processed_benchmarks = expand("data/processed/benchmarks_{benchmark}.csv", bench
 # same experiments and obtain the same results and figures
 paper_LTWP = expand("data/paper/traces_synthetic_{case}_LTWP.csv", case = CASES)
 paper_STWP = expand("data/paper/traces_synthetic_{case}_STWP.csv", case = CASES)
+paper_example = "data/paper/traces_example_simple.csv"
 paper_wikipedia = "data/paper/traces_en_wikipedia.csv"
 paper_providers = expand("data/paper/providers_{provider}_data.csv", provider=PROVIDERS)
 paper_benchnmarks = expand("data/paper/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)

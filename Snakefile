@@ -4,8 +4,8 @@
 include: "Snakefile.definitions"
 
 rule create_input_data:
-     input: synthetic_LTWP, synthetic_STWP, processed_wikipedia,
-            processed_providers, processed_benchmarks
+     input: synthetic_LTWP, synthetic_STWP, synthetic_example,
+            processed_providers, processed_benchmarks, processed_wikipedia
 
 include: "Snakefile.rules"
 

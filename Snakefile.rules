@@ -2,12 +2,18 @@
 # coding: utf-8
 
 rule synthetic_workload:
-    input: synthetic_LTWP, synthetic_STWP
+    input: synthetic_LTWP, synthetic_STWP, synthetic_example
 
 rule copy_pregenerated_synthetic_workload:
     input: "data/paper/traces_synthetic_{case}_{prediction}.csv"
     output: "data/processed/traces_synthetic_{case}_{prediction}.csv"
     message: "Copying pre-generated synthetic {wildcards.prediction} for case {wildcards.case}"
+    shell: "cp {input} {output}"
+
+rule copy_synthetic_example_load:
+    input: paper_example
+    output: synthetic_example
+    message: "Copying pre-generated synthetic example"
     shell: "cp {input} {output}"
 
 rule generate_synthetic_workload:
