@@ -1,0 +1,30 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+# Names for the synthetic workload scenarios
+CASES = ['decreasing', 'everything', 'increasing', 'once',
+         'periodic', 'static', 'unpredictable']
+
+# Names for the cloud providers used to get prices and VM types
+PROVIDERS = ['amazon', 'azure']
+
+# Names for the benchmarks used to get performance data
+BENCHMARKS = ['oldisim', 'wikibench']
+
+# Lists with the names of the input files to use in the experiments
+# These names are created from templates using the data above
+synthetic_LTWP = expand("data/processed/traces_synthetic_{case}_LTWP.csv", case=CASES) 
+synthetic_STWP = expand("data/processed/traces_synthetic_{case}_STWP.csv", case=CASES) 
+processed_wikipedia = "data/processed/traces_en_wikipedia.csv"
+processed_providers = expand("data/processed/providers_{provider}_data.csv", provider=PROVIDERS)
+processed_benchmarks = expand("data/processed/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)
+
+# Lists with the names of the input files used in the paper
+# These are equivalent to the names above, but are already pre-generated
+# so they can be simply copied. This also allows to repeat exactly the
+# same experiments and obtain the same results and figures
+paper_LTWP = expand("data/paper/traces_synthetic_{case}_LTWP.csv", case = CASES)
+paper_STWP = expand("data/paper/traces_synthetic_{case}_STWP.csv", case = CASES)
+paper_wikipedia = "data/paper/traces_en_wikipedia.csv"
+paper_providers = expand("data/paper/providers_{provider}_data.csv", provider=PROVIDERS)
+paper_benchnmarks = expand("data/paper/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)
