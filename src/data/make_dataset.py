@@ -110,39 +110,39 @@ def generate_case(case, levels, slots=24*365,
         Case = namedtuple("Case", ["name", "filename", "function"])
         base_level = level
         cases = [
-            Case("static",  "static",
+            Case("static",  "traces_synthetic_static",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.2)
                  ),
-            Case("periodic", "periodic",
+            Case("periodic", "traces_synthetic_periodic",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.1,
                          long_cycles=2, long_cycle_size=0.1,
                          short_cycles=52, short_cycle_size=0.1,
                          shorter_cycles=365, shorter_cycle_size=0.1)
                  ),
-            Case("once", "once",
+            Case("once", "traces_synthetic_once",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.1,
                          peak_prob=2.0/(24*365.0),
                          peak_size=1,
                          peak_length=slots*0.01)
                  ),
-            Case("unpredictable", "unpredictable",
+            Case("unpredictable", "traces_synthetic_unpredictable",
                  partial(generate_workload,
                          noise_cummulative_range=base_level * 0.02)
                  ),
-            Case("decreasing", "decreasing",
+            Case("decreasing", "traces_synthetic_decreasing",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.1,
                          tendency=-base_level * 0.00005)
                  ),
-            Case("increasing", "increasing",
+            Case("increasing", "traces_synthetic_increasing",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.3,
                          tendency=base_level * 0.000001, tendency_exp=1.5)
                  ),
-            Case("everything", "everything",
+            Case("everything", "traces_synthetic_everything",
                  partial(generate_workload,
                          noise_instant_range=base_level * 0.1,
                          noise_cummulative_range=base_level * 0.005,
