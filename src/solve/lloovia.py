@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from pulp import (LpContinuous, LpInteger, LpVariable, lpSum,
                   LpProblem, LpMinimize, LpMaximize, PulpSolverError,
-                  COIN, COIN_CMD)
+                  COIN, COIN_CMD, log, subprocess)
 from collections import namedtuple
 from itertools import product as cartesian_product
 from inspect import ismethod
@@ -448,6 +448,13 @@ class Lloovia:
             return soldf
 
 # Phase I
+SolvingStats = namedtuple("SolvingStats",
+                          ["max_bins", "histogram",
+                           "frac_gap", "max_seconds",
+                           "creation_time", "solving_time",
+                           "status", "lower_bound", "optimal_cost"
+                           ]
+                          )
 
 
 class PhaseI:
@@ -458,14 +465,6 @@ class PhaseI:
         self.__lloovia = None
 
     def solve(self, max_bins=None, solver=None, relaxed=False):
-
-        SolvingStats = namedtuple("SolvingStats",
-                                  ["max_bins", "histogram",
-                                   "frac_gap", "max_seconds",
-                                   "creation_time", "solving_time",
-                                   "status", "lower_bound", "optimal_cost"
-                                   ]
-                                  )
 
         allocation = None
         lower_bound = None
@@ -535,12 +534,6 @@ class PhaseI:
 # Phase II
 # TODO
 
-# Solution
-# TODO: debería tener métodos para obtener la solución como DataFrame,
-# pero también para obtener el coste, las instancias originales, si
-# es una solución óptima, etc. Si no es óptima, debería dar el lower bound
-
-
 class Solution:
     def __init__(self, problem, solving_stats, allocation):
         """Stores all relevant data related to the solution of an allocation
@@ -549,6 +542,7 @@ class Solution:
         self.solving_stats = solving_stats
         self.allocation = allocation
         self.__cost = None  # Computed from the allocation
+        self.__dataframe = None
 
     def get_allocation(self, only_used=True):
         if only_used:
@@ -559,24 +553,78 @@ class Solution:
             return self.allocation
 
     def get_cost(self, kind="total"):
-        if self.__cost is None:
-            self.__cost = self.compute_cost()
-        if kind in self.__cost:
-            return self.__cost[kind]
+        self.__cost = self.compute_cost()
+        if kind == "total":
+            return self.__cost.sum()
+        elif kind == "reserved":
+            return self.__cost[:, True].sum()
+        elif kind == "ondemand":
+            return self.__cost[:, False].sum()
+        elif kind in self.__cost:
+            return self.__cost[kind].sum()
+        elif kind in self.__cost.index.levels[2]:
+            return self.__cost[:, :, kind].sum()
+        elif kind in self.__cost.index.levels[3]:
+            return self.__cost[:, :, :, kind].sum()
         else:
             return self.__cost
 
+    def get_detailed_allocation(self):
+        """Returns a multi-index dataframe which categorizes the instance classes
+        per provider, region, kind of princing plan. In addition the dataframe
+        contains the price and performance of each instance class, besides the
+        number of each one required for each load level"""
+        a = self.get_allocation(only_used=True)
+        a.columns.name = "VM"
+        solution = (a.T.reset_index()
+                    .assign(Name=lambda x: x.VM.map(lambda x: x.name))
+                    .assign(LS=lambda x: x.VM.map(lambda x: x.cloud.name))
+                    .assign(provider=lambda x: x.LS.map(lambda x: "azure"
+                                                        if "us-east-2" in x
+                                                        else "amazon"))
+                    .assign(rsv=lambda x: x.VM.map(lambda x: x.reserved))
+                    .assign(perf=lambda x: x.VM.map(lambda x: x.performance))
+                    .assign(price=lambda x: x.VM.map(lambda x: x.price))
+                    .set_index(["provider", "rsv", "Name", "LS"])
+                    .sort_index()
+                    )
+        return solution
+
+    def get_cost_and_perf_dataframe(self):
+        """Returns a dataframe which contains the cost and performance
+        of each load-level, taking into account the number of times each
+        load-levels appears in the histogram"""
+        if self.__dataframe is not None:
+            return self.__dataframe
+        H = pd.Series(self.solving_stats.histogram)
+        solution = self.get_detailed_allocation()
+        vm_numbers = solution.iloc[:, 1:-2].sort_index()
+        costs = (vm_numbers.T * solution.price).multiply(H, axis=0)
+        perfs = (vm_numbers.T * solution.perf).multiply(H, axis=0)
+        self.__dataframe = pd.concat([costs, perfs], axis=1,
+                                     keys=("Cost", "Performance"))
+        return self.__dataframe
+
     def compute_cost(self):
-        raise Exception("Not implemented")
+        all_data = self.get_cost_and_perf_dataframe()
+        return all_data.loc[:, "Cost"].sum()
 
+    def save(self, filename):
+        """Parameters:
+        - filename: string with the name of the file
+        """
+        with open(filename, "wb") as f:
+            pickle.dump(file=f, obj=self)
 
-def measure_time(f):
-    start = time.perf_counter()
-    try:
-        f()
-    finally:
-        end = time.perf_counter()
-        return start - end
+    def load(filename):
+        """Parameters:
+        - filename: string with the name of the file
+
+        Returns:
+        - The loaded solution
+        """
+        with open(filename, "rb") as f:
+            return pickle.load(file=f)
 
 
 # TODO: old code from this point
