@@ -177,6 +177,7 @@ class LlooviaHistogram(dict):
     def __repr__(self):
         return "LlooviaHistogram(%d elements)" % len(self)
 
+
 # To store the individual status of each timeslot we use a list
 # but subclass it to provide a custom _repr_ more compact, better
 # suitable for interactive inspection
@@ -670,6 +671,12 @@ class Solution:
         with open(filename, "rb") as f:
             return pickle.load(file=f)
 
+
+class SolutionI(Solution):
+    """Subclass of general solution for the particular case of
+    Phase I solution"""
+    pass    # The general case is valid, no overload required
+
 # Phase II
 SolvingStatsTimeslot = namedtuple("SolvingStatsTimeslot",
                                   ["workload", "ondemand_workload",
@@ -864,7 +871,7 @@ class PhaseII:
 
         # Extract global stats from timeslots stats
         individual_status = StatusList(x.solving_stats.status
-                                 for x in self._solutions.values())
+                                       for x in self._solutions.values())
         global_status = ("overfull"
                          if any(x == "overfull" for x in individual_status)
                          else "optimal")
@@ -941,23 +948,6 @@ class SolutionII(Solution):
                 self.solving_stats.global_status,
                 self.solving_stats.global_cost
                 )
-
-# TODO: old code from this point
-
-# def plot_soldf(df, xlabel, only_used=True, xlim=None):
-#     """Plots a data frame with the format:
-#     - rows: instance classes
-#     - columns: load level or instant. Set the xlabel accordingly
-#     """
-#     if only_used:
-#         df = df[df.columns[(df != 0).any()]]
-#     fig, ax = plt.subplots()
-#     df.plot(ax=ax, kind="area", figsize=(20, 10), stacked=True,
-#             alpha=0.5, legend=True, xlim=xlim)
-#     df.plot(kind="line", figsize=(20, 10), marker="o", stacked=True,
-#             alpha=0.3, ax=ax, legend=False, color="black", xlim=xlim)
-#     ax.set_xlabel(xlabel)
-#     ax.set_ylabel("Number of virtual machines")
 
 
 def get_load_hist_from_load(load, max_bins=None):
