@@ -7,7 +7,7 @@ import numpy as np
 from pulp import (LpContinuous, LpInteger, LpVariable, lpSum,
                   LpProblem, LpMinimize, LpMaximize, PulpSolverError,
                   COIN, COIN_CMD, log, subprocess)
-from collections import namedtuple
+from collections import (namedtuple, OrderedDict, Iterable)
 from itertools import product as cartesian_product
 from inspect import ismethod
 import os
@@ -134,18 +134,21 @@ class Problem:
     It has the list of instances to use and the load, expressed as the load
     for each slot. It provides convenience methods to save and load the problem
     """
-    def __init__(self, instances, load):
+    def __init__(self, instances, workload):
         """Parameters:
         - instances: list of InstanceClass
         - load: list of numbers with the load of each slot
         """
         self.instances = instances
-        self.load = load
+        self.workload = workload
 
     def __repr__(self):
         return "Problem with {} instance classes and {} timeslots".format(
-                len(self.instances), len(self.load)
+                len(self.instances), len(self.workload)
                 )
+
+    def get_only_ondemand(self):
+        return [vm for vm in self.instances if not vm.reserved]
 
     def save(self, filename):
         """Parameters:
@@ -174,6 +177,13 @@ class LlooviaHistogram(dict):
     def __repr__(self):
         return "LlooviaHistogram(%d elements)" % len(self)
 
+# To store the individual status of each timeslot we use a list
+# but subclass it to provide a custom _repr_ more compact, better
+# suitable for interactive inspection
+class StatusList(list):
+    def __repr__(self):
+        return "StatusList(%s)" % set(self)
+
 
 class Lloovia:
     """This class contains methods to create a linear programming problem
@@ -187,8 +197,8 @@ class Lloovia:
 
     The only restrictions in this problem are:
 
-    1. For each load level, the total performance of the deployed machines
-       has to be greater than (or equal to) that load level.
+    1. For each workload level, the total performance of the deployed machines
+       has to be greater than (or equal to) that workload level.
     2. If the provider imposes a limit on the maximum number of virtual
        machines active per limiting set (or per instance class and limiting
        set), this constrain is taken into account.
@@ -204,34 +214,34 @@ class Lloovia:
     `ic` is the string representation of each on-demand instance class
     considered and `l` is each of the load levels considered. The value of the
     variable is the number of machines executed of instance class `ic` when the
-    load is `l`
+    workload is `l`
 
     All possible combinations of the tuple (it) for reserved instances
     and (it,l) for on-demand instances are precomputed in method
     `create_problem` and stored in `self.mapping_res` y `self.mapping_dem`
     respectively.
     """
-    def __init__(self, instances, load, max_bins=None,
+    def __init__(self, instances, workload, max_bins=None,
                  title="Optimize cost", relaxed=False):
         """Initalizes the optimization problem. The parameters are:
         'instances': list of InstanceClass to consider in the deployment.
-        'load': list of number indicating the workload that has to be
+        'workload': list of number indicating the workload that has to be
             supported in each time slot
         'max_bins': maximum number of bins to consder when computing
-              the histogram of the load. If None, each load level would
+              the histogram of the workload. If None, each load level would
               be a bin.
         'title': optional title for the linear programming problem.
         'relaxed': boolean; if True, the problem uses continuous variables
               instead of integer ones
         """
         self.instances = instances
-        self.load = load
+        self.workload = workload
         self.max_bins = max_bins
         self.title = title
         self.relaxed = relaxed
 
         # Compute the histogram
-        self.load_hist = get_load_hist_from_load(load, max_bins=max_bins)
+        self.load_hist = get_load_hist_from_load(workload, max_bins=max_bins)
 
         # Separate the instances in two types: reserved and on-demand
         self.instances_res = []
@@ -268,9 +278,9 @@ class Lloovia:
 
         Override to change the way the cost is computed"""
 
-        # The lenght of the period is the number of timeslots in the load
-        if self.load is not None:
-            period_length = len(self.load)
+        # The lenght of the period is the number of timeslots in the workload
+        if self.workload is not None:
+            period_length = len(self.workload)
 
         # IF the load was not provided, we can use the information from
         # the histogram instead
@@ -301,7 +311,8 @@ class Lloovia:
         # Create the linear programming problem
         self.prob = LpProblem(self.title, LpMinimize)
 
-        # Create the list of load levels where the scheduling has to be found
+        # Create the list of workload levels where the scheduling
+        # has to be found
         self.loads = self.load_hist.keys()
 
         # The variables in the problem for on-demand instances are all the
@@ -336,8 +347,8 @@ class Lloovia:
 
     def performance_restriction(self):
         """Adds to the PuLP problem the restriction of performance, which
-        consists on forcing for each load level, the performance of the
-        deployment to be greater than or equal to that load level.
+        consists on forcing for each workload level, the performance of the
+        deployment to be greater than or equal to that workload level.
         """
         for ld in self.load_hist.keys():
             self.prob += lpSum(
@@ -345,7 +356,7 @@ class Lloovia:
                     for _ic in self.mapping_res] +
                 [self.vms_dem[_ic, ld] * _ic.performance
                     for (_ic, _ld) in self.mapping_dem if _ld == ld]) >= ld,\
-                    "Minimum performance when load is %d" % ld
+                    "Minimum performance when workload is %d" % ld
 
     def limit_instances_per_class_restriction(self):
         """If the instance has a max_vms attribute, this is a limit for that
@@ -363,7 +374,7 @@ class Lloovia:
                         self.prob += lpSum(self.vms_dem[ic, l]) \
                                      <= ic.max_vms, \
                                      "Max instances for on-demand instance "\
-                                     "class %r when load is %d" % (ic, l)
+                                     "class %r when workload is %d" % (ic, l)
 
     def limit_instances_per_limiting_set_restriction(self):
         """If the limiting set provides a max_vms > 0, then the sum of all
@@ -377,7 +388,7 @@ class Lloovia:
                         [self.vms_dem[ic, l] for ic in self.instances_dem
                             if ic.cloud == cloud]) <= cloud.max_vms,\
                                   "Max instances for limiting set %r "\
-                                  "when load is %d" % (cloud, l)
+                                  "when workload is %d" % (cloud, l)
 
     def limit_cores_per_limiting_set_restriction(self):
         """If the limiting set provides a max_cores > 0, then the sum of all
@@ -393,7 +404,7 @@ class Lloovia:
                             for ic in self.instances_dem
                             if ic.cloud == cloud]) <= cloud.max_cores,\
                                 "Max cores for limiting set %r "\
-                                "when load is %d" % (cloud, l)
+                                "when workload is %d" % (cloud, l)
 
     def solve(self, *args, **kwargs):
         """Calls PuLP solver. Accepts the same arguments as a pulp solver"""
@@ -406,7 +417,7 @@ class Lloovia:
         return pulp.value(self.prob.objective)
 
     def get_soldf(self, only_used=False):
-        """Returns the solution as a DataFrame. Rows are load levels and
+        """Returns the solution as a DataFrame. Rows are workload levels and
         columns are instance clases. If only_used is True, instance classes
         never used are not included in the DataFrame.
        """
@@ -448,21 +459,21 @@ class Lloovia:
             return soldf
 
 # Phase I
-SolvingStats = namedtuple("SolvingStats",
-                          ["max_bins", "histogram",
-                           "frac_gap", "max_seconds",
-                           "creation_time", "solving_time",
-                           "status", "lower_bound", "optimal_cost"
-                           ]
-                          )
+SolvingStatsI = namedtuple("SolvingStatsI",
+                           ["max_bins", "workload",
+                            "frac_gap", "max_seconds",
+                            "creation_time", "solving_time",
+                            "status", "lower_bound", "optimal_cost"
+                            ]
+                           )
 
 
 class PhaseI:
-    def __init__(self, problem, title="Optimize cost"):
+    def __init__(self, problem, title="Optimize cost Phase I"):
         self.problem = problem
         self.title = title
         self.solution = None
-        self.__lloovia = None
+        self._lloovia = None
 
     def solve(self, max_bins=None, solver=None, relaxed=False):
 
@@ -472,15 +483,15 @@ class PhaseI:
         status = "unknown"
 
         # Instantiate problem
-        self.__lloovia = Lloovia(self.problem.instances,
-                                 self.problem.load,
-                                 max_bins=max_bins,
-                                 title=self.title,
-                                 relaxed=relaxed)
+        self._lloovia = Lloovia(self.problem.instances,
+                                self.problem.workload,
+                                max_bins=max_bins,
+                                title=self.title,
+                                relaxed=relaxed)
 
         # Write the LP problem and measure the time required
         start = time.perf_counter()
-        p = self.__lloovia.create_problem()
+        p = self._lloovia.create_problem()
         creation_time = time.perf_counter() - start
 
         # Prepare solver
@@ -511,28 +522,26 @@ class PhaseI:
                 lower_bound = p.bestBound
             elif p.status == pulp.LpStatusOptimal:
                 status = "optimal"
-                allocation = self.__lloovia.get_soldf()
+                allocation = self._lloovia.get_soldf()
                 lower_bound = p.bestBound
-                optimal_cost = self.__lloovia.cost()
+                optimal_cost = self._lloovia.cost()
             else:
                 status = str(p.status)
 
-        solving_stats = SolvingStats(max_bins=max_bins,
-                                     histogram=self.__lloovia.load_hist,
-                                     frac_gap=frac_gap,
-                                     max_seconds=max_seconds,
-                                     creation_time=creation_time,
-                                     solving_time=solving_time,
-                                     status=status,
-                                     lower_bound=lower_bound,
-                                     optimal_cost=optimal_cost
-                                     )
+        solving_stats = SolvingStatsI(max_bins=max_bins,
+                                      workload=self._lloovia.load_hist,
+                                      frac_gap=frac_gap,
+                                      max_seconds=max_seconds,
+                                      creation_time=creation_time,
+                                      solving_time=solving_time,
+                                      status=status,
+                                      lower_bound=lower_bound,
+                                      optimal_cost=optimal_cost
+                                      )
 
         self.solution = Solution(self.problem, solving_stats,
                                  allocation)
 
-# Phase II
-# TODO
 
 class Solution:
     def __init__(self, problem, solving_stats, allocation):
@@ -541,8 +550,15 @@ class Solution:
         self.problem = problem
         self.solving_stats = solving_stats
         self.allocation = allocation
-        self.__cost = None  # Computed from the allocation
-        self.__dataframe = None
+        self._cost = None  # Computed from the allocation
+        self._allocation_with_data = None
+        self._full_dataframe = None
+
+    def __repr__(self):
+        return "{} solution with cost {}".format(
+                self.solving_stats.status,
+                self.solving_stats.optimal_cost
+                )
 
     def get_allocation(self, only_used=True):
         if only_used:
@@ -553,27 +569,32 @@ class Solution:
             return self.allocation
 
     def get_cost(self, kind="total"):
-        self.__cost = self.compute_cost()
+        if self._cost is None:
+            self._cost = self.compute_cost()
         if kind == "total":
-            return self.__cost.sum()
+            return self._cost.sum()
         elif kind == "reserved":
-            return self.__cost[:, True].sum()
+            return self._cost[:, True].sum()
         elif kind == "ondemand":
-            return self.__cost[:, False].sum()
-        elif kind in self.__cost:
-            return self.__cost[kind].sum()
-        elif kind in self.__cost.index.levels[2]:
-            return self.__cost[:, :, kind].sum()
-        elif kind in self.__cost.index.levels[3]:
-            return self.__cost[:, :, :, kind].sum()
+            return self._cost[:, False].sum()
+        elif kind in self._cost:
+            return self._cost[kind].sum()
+        elif kind in self._cost.index.levels[2]:
+            return self._cost[:, :, kind].sum()
+        elif kind in self._cost.index.levels[3]:
+            return self._cost[:, :, :, kind].sum()
         else:
-            return self.__cost
+            return self._cost
 
-    def get_detailed_allocation(self):
+    def get_allocation_with_data(self):
         """Returns a multi-index dataframe which categorizes the instance classes
         per provider, region, kind of princing plan. In addition the dataframe
         contains the price and performance of each instance class, besides the
         number of each one required for each load level"""
+
+        if self._allocation_with_data is not None:
+            return self._allocation_with_data
+
         a = self.get_allocation(only_used=True)
         a.columns.name = "VM"
         solution = (a.T.reset_index()
@@ -588,26 +609,49 @@ class Solution:
                     .set_index(["provider", "rsv", "Name", "LS"])
                     .sort_index()
                     )
-        return solution
+        self._allocation_with_data = solution
+        return self._allocation_with_data
 
     def get_cost_and_perf_dataframe(self):
         """Returns a dataframe which contains the cost and performance
         of each load-level, taking into account the number of times each
         load-levels appears in the histogram"""
-        if self.__dataframe is not None:
-            return self.__dataframe
-        H = pd.Series(self.solving_stats.histogram)
-        solution = self.get_detailed_allocation()
+        if self._full_dataframe is not None:
+            return self._full_dataframe
+        solution = self.get_allocation_with_data()
         vm_numbers = solution.iloc[:, 1:-2].sort_index()
-        costs = (vm_numbers.T * solution.price).multiply(H, axis=0)
-        perfs = (vm_numbers.T * solution.perf).multiply(H, axis=0)
-        self.__dataframe = pd.concat([costs, perfs], axis=1,
-                                     keys=("Cost", "Performance"))
-        return self.__dataframe
+        costs = (vm_numbers.T * solution.price)
+        perfs = (vm_numbers.T * solution.perf)
+
+        # If the provided workload is a Histogram, multiply
+        # by the number of times each loadlevel appears
+        if isinstance(self.solving_stats.workload, Iterable):
+            H = pd.Series(self.solving_stats.workload)
+            costs = costs.multiply(H, axis=0)
+            perfs = perfs.multiply(H, axis=0)
+        self._full_dataframe = pd.concat([costs, perfs], axis=1,
+                                         keys=("Cost", "Performance"))
+        return self._full_dataframe
 
     def compute_cost(self):
         all_data = self.get_cost_and_perf_dataframe()
         return all_data.loc[:, "Cost"].sum()
+
+    def compute_performance(self):
+        all_data = self.get_cost_and_perf_dataframe()
+        return all_data.loc[:, "Performance"].sum()
+
+    def compute_reserved_performance(self):
+        """Computes the performance given at each timeslot
+        for all reserved instances."""
+        # Get detailed data about the allocation and VM characteristics
+        aux = self.get_allocation_with_data()
+        # Extract data about reserved instances
+        reserved = aux.loc[[slice(None), True], ]
+        # Take the allocation of the first load-level (the reserved allocation
+        # is the same for any load-level) and compute the performance it gives
+        perf = (reserved.iloc[:, 1] * reserved.perf).sum()
+        return perf
 
     def save(self, filename):
         """Parameters:
@@ -626,6 +670,277 @@ class Solution:
         with open(filename, "rb") as f:
             return pickle.load(file=f)
 
+# Phase II
+SolvingStatsTimeslot = namedtuple("SolvingStatsTimeslot",
+                                  ["workload", "ondemand_workload",
+                                   "frac_gap", "max_seconds",
+                                   "creation_time", "solving_time",
+                                   "status", "lower_bound", "optimal_cost"
+                                   ]
+                                  )
+
+SolvingStatsII = namedtuple("SolvingStatsII",
+                            ["workload",
+                             "default_frac_gap", "default_max_seconds",
+                             "global_creation_time", "global_solving_time",
+                             "global_status", "global_cost",
+                             "individual_status"
+                             ]
+                            )
+
+
+class PhaseII:
+    def __init__(self, problem, phase_I_solution,
+                 title="Optimize cost Phase II", solver=None):
+        self.problem = problem
+        self.title = title
+        if solver is None:
+            self.solver = COIN(msg=1)
+        else:
+            self.solver = solver
+        self.phase_I_solution = phase_I_solution
+        self.ondemand_instances = problem.get_only_ondemand()
+        self.reserved_performance = (phase_I_solution.
+                                     compute_reserved_performance())
+
+        # Hash with the computed solutions for each workload level
+        # initially empty
+        self._solutions = OrderedDict()
+
+        # Internal handle to the inner lloovia solver
+        self._lloovia = None
+
+        # Prepare a "trivial" solution for the cases in which
+        # the workload does not require on-demand instances
+        trivial_stats = SolvingStatsTimeslot(
+                                workload=0,
+                                ondemand_workload=0,
+                                frac_gap=None,
+                                max_seconds=None,
+                                creation_time=0.0,
+                                solving_time=0.0,
+                                status="trivial",
+                                lower_bound=None,
+                                optimal_cost=0.0
+                                )
+        # Solution: Zero ondemand VMs of each type
+        sol = dict((vm, 0) for vm in self.ondemand_instances)
+        trivial_allocation = pd.DataFrame([sol])[self.ondemand_instances]
+        self.__trivial_sol = Solution(self.problem, trivial_stats,
+                                      allocation=trivial_allocation)
+
+        # Prepare a solution which maximizes the performance for the
+        # cases in which the workload is greater than the maximum performance
+        # that the system can give. In this case, the original problem
+        # would be infeasible, and instead of giving a "none" solution
+        # we give one which maximizes the performance.
+        (self.max_performance_allocation,
+         self.max_performance,
+         self.max_performance_cost) = self.compute_max_performance()
+
+    def compute_max_performance(self):
+        # Obtain the maximum load that can be handled with the on-demand VMs
+        # and the dataframe with the number of VMs for that solution
+        lloovia_max_perf = LlooviaMaxPerformance(self.ondemand_instances)
+        lloovia_max_perf.create_problem()
+        lloovia_max_perf.solve(self.solver)
+        max_perf_allocation = lloovia_max_perf.get_soldf()
+        max_perf = lloovia_max_perf.max_perf()
+        max_perf_cost = lloovia_max_perf.cost()
+        return (max_perf_allocation[self.ondemand_instances],
+                max_perf, max_perf_cost)
+
+    def solve_timeslot(self, workload, solver=None, relaxed=False):
+
+        if workload in self._solutions:
+            # This workload was already solved. Nothing to be done
+            return
+
+        ondemand_workload = workload - self.reserved_performance
+
+        # Zero or negative workload implies all demand is served with
+        # reserved instances, so no on-demand ones are required
+        if ondemand_workload <= 0:
+            self._solutions[workload] = self.__trivial_sol
+            return
+
+        # Workload greater than the maximum achievable is an infeasible
+        # case. We use the precomputed solution which maximizes performance
+        if ondemand_workload >= self.max_performance:
+            stats = SolvingStatsTimeslot(
+                                workload=workload,
+                                ondemand_workload=ondemand_workload,
+                                frac_gap=self.solver.fracGap,
+                                max_seconds=self.solver.maxSeconds,
+                                creation_time=0.0,
+                                solving_time=0.0,
+                                status="overfull",
+                                lower_bound=None,
+                                optimal_cost=self.max_performance_cost
+                                )
+            self._solutions[workload] = (Solution(self.problem, stats,
+                                         self.max_performance_allocation))
+            return
+
+        # Otherwise, we have to solve this timeslot
+        allocation = None
+        lower_bound = None
+        optimal_cost = None
+        status = "unknown"
+
+        if solver is None:   # default to class solver
+            solver = self.solver
+
+        # Instantiate problem
+        self._lloovia = Lloovia(self.ondemand_instances,
+                                [ondemand_workload],
+                                title=self.title,
+                                relaxed=relaxed)
+
+        # Write the LP problem and measure the time required
+        start = time.perf_counter()
+        p = self._lloovia.create_problem()
+        creation_time = time.perf_counter() - start
+        frac_gap = solver.fracGap
+        max_seconds = solver.maxSeconds
+
+        # Solve the problem and measure the time required
+        start = time.perf_counter()
+        try:
+            p.solve(solver, use_mps=False)
+        except PulpSolverError as exception:
+            end = time.perf_counter()
+            solving_time = end - start
+            status = "unknown_error"
+            print("Exception PulpSolverError. Time to failure: {} seconds\n"
+                  .format(solving_time), exception)
+
+        else:
+            # No exceptions
+            end = time.perf_counter()
+            solving_time = end - start
+            if p.status == pulp.LpStatusInfeasible:
+                status = 'infeasible'
+            elif p.status == pulp.LpStatusNotSolved:
+                status = 'aborted'
+                lower_bound = p.bestBound
+            elif p.status == pulp.LpStatusOptimal:
+                status = "optimal"
+                allocation = self._lloovia.get_soldf()[self.ondemand_instances]
+                lower_bound = p.bestBound
+                optimal_cost = self._lloovia.cost()
+            else:
+                status = str(p.status)
+
+        solving_stats = SolvingStatsTimeslot(
+                                workload=workload,
+                                ondemand_workload=ondemand_workload,
+                                frac_gap=frac_gap,
+                                max_seconds=max_seconds,
+                                creation_time=creation_time,
+                                solving_time=solving_time,
+                                status=status,
+                                lower_bound=lower_bound,
+                                optimal_cost=optimal_cost
+                                )
+
+        self._solutions[workload] = Solution(self.problem, solving_stats,
+                                             allocation)
+
+    def solve_period(self):
+        """Iterates over each timeslot, solving it and storing the solution
+        in self._solutions. Finally all solutions are aggregated into a
+        single global solution."""
+        for load in self.problem.workload:
+            self.solve_timeslot(load)
+        self.aggregate_solutions()
+
+    def aggregate_solutions(self):
+        """Build a SolutionII object from the data in the _solutions
+        attribute. It has to convert the dictionary of Solutions for
+        each load-level into a single solution which will contain
+        a list of stats (per timeslot) plus a DataFame with allocations
+        per timeslot"""
+
+        # Extract global stats from timeslots stats
+        individual_status = StatusList(x.solving_stats.status
+                                 for x in self._solutions.values())
+        global_status = ("overfull"
+                         if any(x == "overfull" for x in individual_status)
+                         else "optimal")
+        global_creation_time = sum(x.solving_stats.creation_time
+                                   for x in self._solutions.values())
+        global_solving_time = sum(x.solving_stats.solving_time
+                                  for x in self._solutions.values())
+        global_cost = sum(self._solutions[l].solving_stats.optimal_cost
+                          for l in self.problem.workload)
+        default_frac_gap = self.solver.fracGap
+        default_max_seconds = self.solver.maxSeconds
+        workload = np.array(self.problem.workload)
+
+        global_stats = (SolvingStatsII(
+                                  workload=workload,
+                                  default_frac_gap=default_frac_gap,
+                                  default_max_seconds=default_max_seconds,
+                                  global_creation_time=global_creation_time,
+                                  global_solving_time=global_solving_time,
+                                  global_status=global_status,
+                                  global_cost=global_cost,
+                                  individual_status=individual_status
+                                  )
+                        )
+        # Compose single allocation dataframe from timeslots allocations
+
+        # Extract the allocation of reserved instances from phase I
+        # Since this allocation is identical for any load level, we
+        # arbitrarily take the first one (iloc[0])
+        alloc_I = self.phase_I_solution.allocation
+        rsv_instances_I = list(x for x in alloc_I.columns if x.reserved)
+        reserved_alloc = alloc_I[rsv_instances_I].iloc[0]
+        # Extend this allocation for all timeslots
+        full_period_rsv_alloc = np.repeat([reserved_alloc.values],
+                                          len(self.problem.workload),
+                                          axis=0)
+        # Extract the allocation of ondemand instances for each timeslot
+        # Iterating for each timeslot, we lookup in the dictionary of
+        # solutions the one for the workloadlevel in that timeslot
+        full_period_dem_alloc = (np.array(
+                     [self._solutions[l].allocation.values[0]
+                      for l in self.problem.workload])
+                     )
+
+        # The extracted data is in form of numpy array. We join
+        # both in a single dataframe with appropiate column names
+        # (the instance classes)
+        allocation = pd.DataFrame(np.append(full_period_rsv_alloc,
+                                            full_period_dem_alloc, axis=1),
+                                  columns=rsv_instances_I +
+                                  self.ondemand_instances
+                                  )
+
+        self.solution = SolutionII(self.problem, global_stats, allocation)
+
+
+class SolutionII(Solution):
+    def get_cost_and_perf_dataframe(self):
+        """This function is overriden because Phase II solution does
+        not use any histogram, nor a list of allocations per load-level,
+        but a list of allocations per timeslot"""
+        if self._full_dataframe is not None:
+            return self._full_dataframe
+        solution = self.get_allocation_with_data()
+        vm_numbers = solution.iloc[:, 1:-2].sort_index()
+        costs = vm_numbers.T * solution.price
+        perfs = vm_numbers.T * solution.perf
+        self._full_dataframe = pd.concat([costs, perfs], axis=1,
+                                         keys=("Cost", "Performance"))
+        return self._full_dataframe
+
+    def __repr__(self):
+        return "{} solution with global ondemand cost {}".format(
+                self.solving_stats.global_status,
+                self.solving_stats.global_cost
+                )
 
 # TODO: old code from this point
 
@@ -836,7 +1151,7 @@ class LlooviaMaxPerformance:
         if self.prob.status != pulp.LpStatusOptimal:  # Not solved
             raise Exception("Cannot get the solution for an unsolved problem")
 
-        sol = {}
+        sol = OrderedDict()
         for i in self.instances:
             sol[i] = self.vms[i].varValue
 
