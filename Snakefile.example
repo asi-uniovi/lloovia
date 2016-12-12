@@ -1,0 +1,80 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+# include: "Snakefile.definitions"
+import os,sys,inspect
+currentdir = os.path.dirname(
+    os.path.abspath(inspect.getfile(inspect.currentframe()))
+        )
+sys.path.insert(0, os.path.join(currentdir, "src/solve"))
+sys.path.insert(0, os.path.join(currentdir, "src/visualization"))
+
+example_files = expand("data/interim/example_{what}.pickle", what=[
+            "problem", "phase_I", "phase_I_10bins", "phase_II_10bins"
+        ])
+
+rule run_example:
+     input: example_files
+
+rule generate_example_problem:
+    input:  "data/processed/traces_example_simple.csv"
+    output: example_files[0]
+    run:
+        from lloovia import (InstanceClass, LimitingSet, Problem)
+        import pandas as pd
+
+        # Define the different regions and zones, and set the limits
+        region1 = LimitingSet("Region1",  max_vms=15)    # Those are for on-demand
+        region2 = LimitingSet("Region2",  max_vms=15)
+        zone1   = LimitingSet("Region2 Z1", max_vms=12)  # Those are for reserved
+        zone2   = LimitingSet("Region2 Z2", max_vms=12)
+        LS = [region1, region2, zone1, zone2]
+
+        instance_classes = [           # Price, performance
+            # on-demand
+            InstanceClass("small", region1, 0.05,   5,  max_vms=10),
+            InstanceClass("large", region1, 0.11,   10, max_vms=10, provides={"cpus": 2} ),
+            InstanceClass("small", region2, 0.052,  5,  max_vms=10),
+            InstanceClass("large", region2, 0.12,   10, max_vms=10, provides={"cpus": 2} ),
+            # Reserved
+            InstanceClass("small", zone1,   0.038,  5,  reserved=True, max_vms=None),
+            InstanceClass("large", zone1,   0.09,  10,  reserved=True, max_vms=None, provides={"cpus": 2} ),
+            InstanceClass("small", zone2,   0.038,  5,  reserved=True, max_vms=None),
+            InstanceClass("large", zone2,   0.09,  10,  reserved=True, max_vms=None, provides={"cpus": 2} ),
+        ]
+
+        df = pd.read_csv(input[0], index_col=0)
+        workload=df.load.values
+        problem = Problem(instance_classes, workload)
+        problem.save(output[0])
+
+rule solve_example_phase_I_without_binning:
+    input: example_files[0]
+    output: example_files[1]
+    run:
+        from lloovia import (Problem, PhaseI)
+        problem = Problem.load(input[0])
+        phaseI = PhaseI(problem)
+        phaseI.solve()
+        phaseI.solution.save(output[0])
+
+rule solve_example_phase_I_with_10_bins:
+    input: example_files[0]
+    output: example_files[2]
+    run:
+        from lloovia import (Problem, PhaseI)
+        problem = Problem.load(input[0])
+        phaseI = PhaseI(problem)
+        phaseI.solve(max_bins=10)
+        phaseI.solution.save(output[0])
+
+rule solve_example_phase_II_with_10_bins:
+    input: example_files[0], example_files[2]
+    output: example_files[3]
+    run:
+        from lloovia import (Problem, SolutionI, PhaseII)
+        problem = Problem.load(input[0])
+        solution_phase_I = SolutionI.load(input[1])
+        phaseII = PhaseII(problem, solution_phase_I)
+        phaseII.solve_period()
+        phaseII.solution.save(output[0])
