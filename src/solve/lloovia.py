@@ -459,6 +459,7 @@ class Lloovia:
         else:
             return soldf
 
+
 # Phase I
 SolvingStatsI = namedtuple("SolvingStatsI",
                            ["max_bins", "workload",
@@ -676,6 +677,7 @@ class SolutionI(Solution):
     """Subclass of general solution for the particular case of
     Phase I solution"""
     pass    # The general case is valid, no overload required
+
 
 # Phase II
 SolvingStatsTimeslot = namedtuple("SolvingStatsTimeslot",
@@ -1268,6 +1270,7 @@ def solve_CBC_patched(self, lp, use_mps=True):
         except:
             pass
     return lp.status
+
 
 # Monkeypatching
 COIN_CMD.solve_CBC = solve_CBC_patched
