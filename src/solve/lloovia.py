@@ -1,9 +1,7 @@
 # coding: utf-8
-# import matplotlib.pyplot as plt
-# from pulp import *
-import pulp
 import pandas as pd
 import numpy as np
+import pulp
 from pulp import (LpContinuous, LpInteger, LpVariable, lpSum,
                   LpProblem, LpMinimize, LpMaximize, PulpSolverError,
                   COIN, COIN_CMD, log, subprocess)
@@ -13,12 +11,6 @@ from inspect import ismethod
 import os
 import pickle
 import time
-
-# Set following ones in notebook, if required
-# %matplotlib inline
-# plt.style.use("bmh")   # Set this one in notebook
-# from IPython.display import display
-
 
 # LimitingSet
 
