@@ -21,7 +21,7 @@ rule generate_synthetic_workload:
     message: "Generating new sythetic {wildcards.prediction} for case {wildcards.case}"
     run:
         import src.data.make_dataset as m
-        m.generate_case(wildcards.case, [10000, 50000, 100000, 1000000, 300000],
+        m.generate_case(wildcards.case, LEVELS,
                         extension="_" + wildcards.prediction, folder="data/processed")
 
 

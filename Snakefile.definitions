@@ -4,6 +4,8 @@
 # Names for the synthetic workload scenarios
 CASES = ['decreasing', 'everything', 'increasing', 'once',
          'periodic', 'static', 'unpredictable']
+LEVELS = [50000, 100000, 1000000, 3000000]
+
 
 # Names for the cloud providers used to get prices and VM types
 PROVIDERS = ['amazon', 'azure']
@@ -31,3 +33,6 @@ paper_example = "data/paper/traces_example_simple.csv"
 paper_wikipedia = "data/paper/traces_en_wikipedia.csv"
 paper_providers = expand("data/paper/providers_{provider}_data.csv", provider=PROVIDERS)
 paper_benchnmarks = expand("data/paper/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)
+
+BINS = [5,10,20,40,80,200,400,800,1500,3000,6000]
+
