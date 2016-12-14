@@ -1,0 +1,113 @@
+# vim: syntax=python tabstop=4 expandtab
+# coding: utf-8
+
+include: "Snakefile.definitions"
+import os,sys,inspect
+currentdir = os.path.dirname(
+    os.path.abspath(inspect.getfile(inspect.currentframe()))
+        )
+sys.path.insert(0, os.path.join(currentdir, "src/solve"))
+sys.path.insert(0, os.path.join(currentdir, "src/visualization"))
+sys.path.insert(0, os.path.join(currentdir, "src/data"))
+
+interim_folder = "/tmp/interim"
+#interim_folder = "data/interim"
+# #
+# # PHASE I: Files to aggregate
+# # One file per scenario, level and each max_bins value
+# phase_I = expand("%s/phaseI/case_{case}_level_{level}_bins_{bins}.pickle" % 
+#                  interim_folder, case=CASES, level=LEVELS, bins=BINS)
+# # result
+# phase_I_abridged_solutions = expand("%s/phaseI/case_{case}_level_{level}_abridged.pickle" % interim_folder, case=CASES, level=LEVELS)
+# 
+# # Append also one file per scenario, level and the case max_bins=None
+# phase_I.extend(expand("%s/phaseI/case_{case}_level_{level}_nobins.pickle" %
+#                       interim_folder, case=CASES, level=LEVELS))
+# 
+# # PHASE II DESIRED RESULTS
+# # For the Perfect Prediction, one solution per scenario, level and max_bins
+# phase_II_PP = expand("%s/phaseII_PP/case_{case}_level_{level}_bins_{bins}.pickle" % 
+#                      interim_folder, case=CASES, level=LEVELS, bins=BINS)
+# 
+# # For the non perfect prediction, one solution per scenario, level and max_bins
+# phase_II_realization = expand("%s/phaseII_R/case_{case}_level_{level}_bins_{bins}.pickle" %
+#                               interim_folder, case=CASES, level=LEVELS, bins=[20])
+# 
+# # NOTE: Only for max_bins=20 to reproduce the results in the paper.
+# # Replace with bins=BINS to get results for all max_bins values
+# 
+# # For the oracle, one solution per scenario and level (it uses max_bins=None)
+# phase_II_oracle = expand("%s/phaseII/case_{case}_level_{level}_oracle.pickle" %
+#                         interim_folder, case=CASES, level=LEVELS)
+
+USE_PAPER_DATASET=True
+PHASES=["phaseI", "phaseII_PP", "phaseII_R", "phaseII"]
+
+# Perfect prediction case
+all_inputs_with_bins = expand("%s/{phase}/case_{case}_level_{level}_bins_{bins}.pickle" %
+                              interim_folder, phase=PHASES[0:2], case=CASES, level=LEVELS, bins=BINS)
+all_inputs_nobins = expand("%s/{phase}/case_{case}_level_{level}_nobins.pickle" %
+                            interim_folder, phase=PHASES[1], case=CASES, level=LEVELS)
+
+# Imperfect prediction case (realization)
+realization = expand("%s/{phase}/case_{case}_level_{level}_bins_{bins}.pickle" % 
+                    interim_folder, phase=PHASES[2], case=CASES, level=LEVELS, bins=BINS_REALIZATION)
+oracle = expand("%s/{phase}/case_{case}_level_{level}_oracle.pickle" %
+                interim_folder, phase=PHASES[3], case=CASES, level=LEVELS)
+
+all_inputs = all_inputs_with_bins + all_inputs_nobins + realization # + oracle
+
+summaries = expand("%s/{phase}/case_{case}_level_{level}_summary.pickle" %
+                  interim_folder, phase=PHASES, case=CASES, level=LEVELS)
+
+all_results_pickle = "data/processed/all_experiments_result.pickle"
+
+
+rule create_single_dataframe:
+    input: all_results_pickle
+
+# rule abridge_solutions:
+#     input: phase_I_abridged_solutions
+
+def files_composing_experiment_solution(w):
+    if w.phase==PHASES[0]:
+        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
+                      (interim_folder, w.phase, w.case, w.level),
+                      bins=BINS
+                      )
+        files.append("%s/%s/case_%s_level_%s_nobins.pickle" % 
+                     (interim_folder, w.phase, w.case, w.level))
+    elif w.phase==PHASES[1]:
+        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
+                      (interim_folder, w.phase, w.case, w.level),
+                      bins=BINS
+                      )
+    elif w.phase==PHASES[2]:
+        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
+                      (interim_folder, w.phase, w.case, w.level),
+                      bins=BINS_REALIZATION
+                      )
+    elif w.phase==PHASES[3]:
+        files = expand("%s/%s/case_%s_level_%s_oracle.pickle" % 
+                       (interim_folder, w.phase, w.case, w.level))
+    else:
+        raise Exception("Unknown phase: %s", w.phase)
+    return files
+
+rule summarize_experiment:
+    input: files_composing_experiment_solution
+    output: "%s/{phase}/case_{case}_level_{level}_summary.pickle" % interim_folder
+    message: "Summarizing solutions for {wildcards.phase} of experiments '{wildcards.case}-{wildcards.level}'"
+    run:
+        import experiments
+        experiments.summarize_experiment(input, output[0])
+
+rule join_summaries:
+    input: summaries
+    output: all_results_pickle
+    message: "Joining all experiment results in single dataframe: {output}"
+    run:
+        import experiments
+        experiments.collect_all_results(input, 
+             dict(phaseI="I", phaseII_PP="II", phaseII_R="R", phaseII="O"),
+             output[0])

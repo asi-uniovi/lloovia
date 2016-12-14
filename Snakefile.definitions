@@ -35,4 +35,4 @@ paper_providers = expand("data/paper/providers_{provider}_data.csv", provider=PR
 paper_benchnmarks = expand("data/paper/benchmarks_{benchmark}.csv", benchmark=BENCHMARKS)
 
 BINS = [5,10,20,40,80,200,400,800,1500,3000,6000]
-
+BINS_REALIZATION = [20]
