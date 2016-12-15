@@ -12,10 +12,22 @@ import os
 import pickle
 import time
 
+
 # LimitingSet
 
 class LimitingSet:
+    """This class represents a Limiting Set as defined in the paper.
+    Examples of limiting sets are regions in Amazon or Azure, or
+    availability zones in Amazon. The number of virtual machines
+    and of cores can be limited inside a limiting set."""
     def __init__(self, name, max_vms=20, max_cores=0):
+        """Args:
+            'name': any string.
+            'max_vms': maximum number of VMs inside this LimitingSet.
+                Use 0 if there is no limit.
+            'max_cores': maximum number of cores inside this LimitingSet.
+                Use 0 if ther is no limit.
+        """
         self.name = name
         self.max_vms = max_vms if max_vms is not None else 0
         self.max_cores = max_cores if max_cores is not None else 0
@@ -27,48 +39,41 @@ class LimitingSet:
 # InstanceClass
 
 class InstanceClass:
-    """This class represent a virtual machine class in some cloud provider
-    and its attributes (performance, price, etc). It includes the attribute
-    max_vms because some providers (eg. Amazon) pose a limit in the
-    maximum number of active instances per class and region"""
+    """This class represents a virtual machine class in some cloud provider
+    and its attributes (performance, price, etc.). It includes the attribute
+    max_vms because some providers (e.g.: Amazon) pose a limit in the
+    maximum number of active instances per class and region."""
     def __init__(self, name, cloud, price, performance, max_vms=0,
                  _type="", reserved=False, provides=None, comment=""):
-        """'name' is any string, usually very short, e.g: 'S', 'L'
-           which is meaningful for the analyst.
+        """Args:
 
-        'cloud' is a LimitingSet
-
-            The 'name' and 'cloud' string repr are concatenated to create the
-            string representation of this InstanceClass, which is used when
-            printing objects of this type.
-
-        'price' is the price/hour of this kind of instance (if the instance
-             has any kind of discount, this price has to include it,
-             proportional to the hour)
-
-        'performance' is the performance given for this instance class
-             in any unit which is meaningful for the analyst, who should
-             use the same units when specifying the expected load
-
-        'max_vms' is the limit on the number of active virtual machines of this
-             type in the limit set for this instance class (eg: Amazon imposes
-             such a limit in a region). If the provider does not impose this
-             kind of limit, it should be None.
-
-        '_type' is the identifier the cloud provider uses for this kind
-             of instance, eg, Amazon's 't2.small'
-
-        'reserved' is a boolean indicating if this instance is reserved.
-             This kind of instances are cheaper, but they are paid even
-             if they are not instantiated, so the formula computing the
-             cost has to deal with them differently.
-
-        'provides' it can contain special features of this kind of instance,
-             such as the OS it can run, the amount of RAM, etc. which can be
-             used to restrict the mapping of only certain types of machines.
-             Currently, only the number of cores is used
-
-        'comment' is a free form string.
+            'name' is any string, usually very short, e.g.: 'S', 'L',
+               which is meaningful for the analyst.
+            'cloud' is a LimitingSet.
+                The 'name' and 'cloud' string repr are concatenated to create
+                the string representation of this InstanceClass, which is used
+                when printing objects of this type.
+            'price' is the price/hour of this kind of instance (if the instance
+                has any kind of discount, this price has to include it,
+                proportional to the hour).
+            'performance' is the performance given for this instance class
+                in any unit which is meaningful for the analyst, who should
+                use the same units when specifying the expected load.
+            'max_vms' is the limit on the number of active virtual machines of
+                this type in the limiting set for this instance class (e.g.:
+                Amazon imposes such a limit in a region). If the provider does
+                not impose this kind of limit, it should be None.
+            '_type' is the identifier the cloud provider uses for this kind
+                of instance, e.g.: Amazon's 't2.small'.
+            'reserved' is a boolean indicating if this instance is reserved.
+                This kind of instances are cheaper, but are paid even
+                if they are not instantiated, so the formula computing the
+                cost has to deal with them differently.
+            'provides' it can contain special features of this kind of
+                instance, such as the OS it can run, the amount of RAM, etc.,
+                which can be used to restrict the mapping of only certain types
+                of machines. Currently, only the number of cores is used.
+            'comment' is a free form string.
         """
         self.name = name
         self.cloud = cloud
@@ -88,7 +93,7 @@ class InstanceClass:
         """PuLP uses repr(obj) to create names for the linear problem
         variables, so we provide a method which builds a sensible
         representation. It consists in the concatenation of the name
-        and cloud strings, and an extra '_R' if it is reserved"""
+        and cloud strings, and an extra '_R' if it is reserved."""
         return "{}_{}{}".format(self.name, self.cloud,
                                 "_R" if self.reserved else "")
 
@@ -103,7 +108,7 @@ class InstanceClass:
         return html + "</table>"
 
     def order_key(self):
-        """Returns a "key" used to order a list of instance classes"""
+        """Returns a "key" used to order a list of instance classes."""
         # The key is built to group first all instance classes in the same
         # cloud (by alphabetical order of cloud), then all reserved classes
         # before all non-reserved, and finally by alphabetical order of the
@@ -118,18 +123,18 @@ class InstanceClass:
         cloud = self.cloud
         return "{}{}{}".format(cloud, rsv, name)
 
-# Problem
 
+# Problem
 
 class Problem:
     """This class represents a cloud allocation problem that must be solved.
     It has the list of instances to use and the load, expressed as the load
-    for each slot. It provides convenience methods to save and load the problem
-    """
+    for each slot. It provides convenience methods to save and load the
+    problem."""
     def __init__(self, instances, workload):
-        """Parameters:
-        - instances: list of InstanceClass
-        - load: list of numbers with the load of each slot
+        """Args:
+            'instances': list of InstanceClass.
+            'load': list of numbers with the load of each slot.
         """
         self.instances = instances
         self.workload = workload
@@ -140,39 +145,45 @@ class Problem:
                 )
 
     def get_only_ondemand(self):
+        """Returns a list which includes only on-demand Instance Classes
+        from the list of Instance Classes used in the problem."""
         return [vm for vm in self.instances if not vm.reserved]
 
     def save(self, filename):
-        """Parameters:
-        - filename: string with the name of the file
+        """Saves a problem to a file.
+
+        Args:
+            'filename': string with the name of the file.
         """
         with open(filename, "wb") as f:
             pickle.dump(file=f, obj=self)
 
     def load(filename):
-        """Parameters:
-        - filename: string with the name of the file
+        """Load a problem from a file.
 
+        Args:
+            'filename': string with the name of the file.
         Returns:
-        - The loaded problem
+            - The problem that has been loaded from the file.
         """
         with open(filename, "rb") as f:
             return pickle.load(file=f)
 
+
 # Lloovia
 
-
-# Llovia uses plain dictionaries to store histograms. We subclasse it
-# to provide a custom _repr_ more compact, better suitable for
-# interactive inspection
 class LlooviaHistogram(dict):
+    """Histogram for Lloovia. Lloovia uses plain dictionaries to store
+    histograms. We subclass it to provide a custom _repr_, more compact
+    and better suited for interactive inspection.
+    """
     def __repr__(self):
         return "LlooviaHistogram(%d elements)" % len(self)
 
 
-# To store the individual status of each timeslot we use a list
-# but subclass it to provide a custom _repr_ more compact, better
-# suitable for interactive inspection
+# To store the individual status of each time slot we use a list
+# but we subclass it to provide a custom _repr_, more compact and better
+# suited for interactive inspection
 class StatusList(list):
     def __repr__(self):
         return "StatusList(%s)" % set(self)
@@ -184,9 +195,9 @@ class Lloovia:
     to solve it (using PuLP supported solvers), and to retrieve
     the solution in a format amenable to further analysis and display.
 
-    This class implements the problem in which the number of
-    machines of a set of InstanceClasses has to be obtained for a set of values
-    for the expected load, whose histogram is known.
+    This class implements the problem in which the number of machines of a
+    set of InstanceClasses has to be obtained for a set of values
+    for the expected load.
 
     The only restrictions in this problem are:
 
@@ -194,38 +205,40 @@ class Lloovia:
        has to be greater than (or equal to) that workload level.
     2. If the provider imposes a limit on the maximum number of virtual
        machines active per limiting set (or per instance class and limiting
-       set), this constrain is taken into account.
+       set), this constraint is taken into account.
 
-    The problem instantiates variables are:
+    The problem instantiates these variables:
 
     - For reserved instances: `Y_(_ic)`, where `Y` is a fixed prefix, and`ic`
     is the string representation of each reserved instance class considered.
     The value of the variable is the number of machines executed of instance
-    class `ic`
+    class `ic`.
 
     - For on-demand instances: `X_(_ic,_l)`, where `X` is a fixed prefix,
     `ic` is the string representation of each on-demand instance class
     considered and `l` is each of the load levels considered. The value of the
     variable is the number of machines executed of instance class `ic` when the
-    workload is `l`
+    workload is `l`.
 
     All possible combinations of the tuple (it) for reserved instances
-    and (it,l) for on-demand instances are precomputed in method
+    and (it,l) for on-demand instances are precomputed in the method
     `create_problem` and stored in `self.mapping_res` y `self.mapping_dem`
     respectively.
     """
     def __init__(self, instances, workload, max_bins=None,
                  title="Optimize cost", relaxed=False):
-        """Initalizes the optimization problem. The parameters are:
-        'instances': list of InstanceClass to consider in the deployment.
-        'workload': list of number indicating the workload that has to be
-            supported in each time slot
-        'max_bins': maximum number of bins to consder when computing
-              the histogram of the workload. If None, each load level would
-              be a bin.
-        'title': optional title for the linear programming problem.
-        'relaxed': boolean; if True, the problem uses continuous variables
-              instead of integer ones
+        """Initializes the optimization problem.
+
+        Args:
+            'instances': list of InstanceClass to consider in the deployment.
+            'workload': list of number indicating the workload that has to be
+                supported in each time slot.
+            'max_bins': maximum number of bins to consider when computing
+                the histogram of the workload. If None, each load level would
+                be a bin.
+            'title': optional title for the linear programming problem.
+            'relaxed': boolean; if True, the problem uses continuous variables
+                instead of integer ones.
         """
         self.instances = instances
         self.workload = workload
@@ -254,7 +267,7 @@ class Lloovia:
     def create_variables(self):
         """Creates the set of variables Y* and X* of the basic problem.
         Override it if you need to create extra variables (first use
-        super().create_variables() to call the base clase method)"""
+        super().create_variables() to call the base class method)."""
         if self.relaxed:
             kind = LpContinuous
         else:
@@ -269,9 +282,9 @@ class Lloovia:
         price/hour of each reserved instance class plus all X_ic_l
         multiplied by the price/hour of each on-demand instance class.
 
-        Override to change the way the cost is computed"""
+        Override to change the way the cost is computed."""
 
-        # The lenght of the period is the number of timeslots in the workload
+        # The lenght of the period is the number of time slots in the workload
         if self.workload is not None:
             period_length = len(self.workload)
 
@@ -298,7 +311,7 @@ class Lloovia:
             create iteration loops.
           self.mapping_dem: list of all combinations (ic,l) for on-demand
             instances, useful to create iteration loops.
-          self.prob: instance of the PuLP problem
+          self.prob: instance of the PuLP problem.
         """
 
         # Create the linear programming problem
@@ -311,7 +324,7 @@ class Lloovia:
         # The variables in the problem for on-demand instances are all the
         # possible tuples (instance, load). In the solution, each tuple has a
         # numeric value that indicates the number of virtual machines
-        # instanciated of that instance class for that load. Reserved instances
+        # instantiated of that instance class for that load. Reserved instances
         # are the same, but without the last index (load)
         self.mapping_res = self.instances_res
         self.mapping_dem = list(cartesian_product(self.instances_dem,
@@ -332,7 +345,7 @@ class Lloovia:
 
     def add_all_restrictions(self):
         """This functions uses introspection to discover all implemented
-        methods whose name ends with `_restriction`, and runs them all"""
+        methods whose name ends with `_restriction`, and runs them all."""
         for name in dir(self):
             attribute = getattr(self, name)
             if ismethod(attribute) and name.endswith("_restriction"):
@@ -371,7 +384,7 @@ class Lloovia:
 
     def limit_instances_per_limiting_set_restriction(self):
         """If the limiting set provides a max_vms > 0, then the sum of all
-        instances in that limiting set should be limited to that maximum"""
+        instances in that limiting set should be limited to that maximum."""
         for l in self.loads:
             for cloud in self.clouds:
                 if cloud.max_vms > 0:
@@ -385,7 +398,7 @@ class Lloovia:
 
     def limit_cores_per_limiting_set_restriction(self):
         """If the limiting set provides a max_cores > 0, then the sum of all
-        instance cores in that region should be limited to that maximum"""
+        instance cores in that region should be limited to that maximum."""
         for l in self.loads:
             for cloud in self.clouds:
                 if cloud.max_cores > 0:
@@ -400,20 +413,19 @@ class Lloovia:
                                 "when workload is %d" % (cloud, l)
 
     def solve(self, *args, **kwargs):
-        """Calls PuLP solver. Accepts the same arguments as a pulp solver"""
+        """Calls PuLP solver. Accepts the same arguments as a pulp solver."""
         return self.prob.solve(*args, **kwargs)
 
     def cost(self):
-        """Gets the cost of the problem obtained after solving it"""
+        """Gets the cost of the problem obtained after solving it."""
         if self.prob.status != pulp.LpStatusOptimal:  # Not solved
             raise Exception("Cannot get the cost of an unsolved problem")
         return pulp.value(self.prob.objective)
 
     def get_soldf(self, only_used=False):
         """Returns the solution as a DataFrame. Rows are workload levels and
-        columns are instance clases. If only_used is True, instance classes
-        never used are not included in the DataFrame.
-       """
+        columns are instance classes. If only_used is True, instance classes
+        never used are not included in the DataFrame."""
 
         if self.prob.status != pulp.LpStatusOptimal:  # Not solved
             raise Exception("Cannot get the solution for an unsolved problem")
@@ -453,6 +465,9 @@ class Lloovia:
 
 
 # Phase I
+
+"""This named tuple represents the different statistics that can be
+gathered from a solution of Phase I."""
 SolvingStatsI = namedtuple("SolvingStatsI",
                            ["max_bins", "workload",
                             "frac_gap", "max_seconds",
@@ -463,14 +478,33 @@ SolvingStatsI = namedtuple("SolvingStatsI",
 
 
 class PhaseI:
+    """This class is used for solving Phase I. It receives a problem in the
+    constructor. After executing the method solve(), you can get the solution
+    with the field 'solution'.
+    """
     def __init__(self, problem, title="Optimize cost Phase I"):
+        """Args:
+            'problem': the problem (instances and workload) to solve.
+            'title': optional title for the linear programming problem.
+        """
         self.problem = problem
         self.title = title
         self.solution = None
         self._lloovia = None
 
     def solve(self, max_bins=None, solver=None, relaxed=False):
+        """Solves the problem for Phase I. After calling this method, the
+        field 'solution' stores the result.
 
+        Args:
+            'max_bins': maximum number of bins to consider when computing
+                the histogram of the workload. If None, each load level would
+                be a bin.
+            'solver': optional Pulp solver. It can have custom arguments, such
+                as fracGap and maxSeconds.
+            'relaxed': boolean; if True, the problem uses continuous variables
+                instead of integer ones.
+        """
         allocation = None
         lower_bound = None
         optimal_cost = None
@@ -538,9 +572,17 @@ class PhaseI:
 
 
 class Solution:
+    """Stores all relevant data related to the solution of an allocation
+    problem, including the problem data."""
     def __init__(self, problem, solving_stats, allocation):
-        """Stores all relevant data related to the solution of an allocation
-        problem, including the problem data."""
+        """Args:
+            'problem': instances and workload used in the problem as an
+                object of class Problem
+            'solving_stats': statistics about the solution. It can be
+                an instance of SolvingStatsI or SolvingStatsII.
+            'allocation': data frame with the allocation. Rows are workload
+                levels and columns are instance classes.
+        """
         self.problem = problem
         self.solving_stats = solving_stats
         self.allocation = allocation
@@ -555,6 +597,11 @@ class Solution:
                 )
 
     def get_allocation(self, only_used=True):
+        """Returns the allocation as a DataFrame. Rows are workload
+        levels and columns are instance classes. If 'only_used' is True,
+        the instances that are never allocated are excluded from the
+        DataFrame.
+        """
         if only_used:
             return self.allocation[
                     self.allocation.columns[(self.allocation != 0).any()]
@@ -563,6 +610,13 @@ class Solution:
             return self.allocation
 
     def get_cost(self, kind="total"):
+        """Returns the cost of the solution. The argument 'kind' can be:
+            - 'total': return the total cost.
+            - 'reserved': return only the cost of reserved instances.
+            - 'ondemand': return only the cost of on-demand instances.
+            - the name of a region, instance class or limiting set: return
+                only the name of that region, instance or limiting set.
+        """
         if self._cost is None:
             self._cost = self.compute_cost()
         if kind == "total":
@@ -582,10 +636,10 @@ class Solution:
 
     def get_allocation_with_data(self):
         """Returns a multi-index dataframe which categorizes the instance classes
-        per provider, region, kind of princing plan. In addition the dataframe
+        per provider, region, kind of pricing plan. In addition the dataframe
         contains the price and performance of each instance class, besides the
-        number of each one required for each load level"""
-
+        number of each one required for each load level.
+        """
         if self._allocation_with_data is not None:
             return self._allocation_with_data
 
@@ -609,7 +663,8 @@ class Solution:
     def get_cost_and_perf_dataframe(self):
         """Returns a dataframe which contains the cost and performance
         of each load-level, taking into account the number of times each
-        load-levels appears in the histogram"""
+        load-levels appears in the histogram.
+        """
         if self._full_dataframe is not None:
             return self._full_dataframe
         solution = self.get_allocation_with_data()
@@ -628,16 +683,18 @@ class Solution:
         return self._full_dataframe
 
     def compute_cost(self):
+        """Returns the total cost of the solution."""
         all_data = self.get_cost_and_perf_dataframe()
         return all_data.loc[:, "Cost"].sum()
 
     def compute_performance(self):
+        """Returns the total performance of the solution."""
         all_data = self.get_cost_and_perf_dataframe()
         return all_data.loc[:, "Performance"].sum()
 
     def compute_reserved_performance(self):
-        """Computes the performance given at each timeslot
-        for all reserved instances."""
+        """Returns the total performance given at each time slot
+        with reserved instances."""
         # Get detailed data about the allocation and VM characteristics
         aux = self.get_allocation_with_data()
         # Extract data about reserved instances
@@ -648,15 +705,15 @@ class Solution:
         return perf
 
     def save(self, filename):
-        """Parameters:
-        - filename: string with the name of the file
+        """Args:
+            'filename': string with the name of the file
         """
         with open(filename, "wb") as f:
             pickle.dump(file=f, obj=self)
 
     def load(filename):
-        """Parameters:
-        - filename: string with the name of the file
+        """Args:
+            'filename': string with the name of the file
 
         Returns:
         - The loaded solution
@@ -666,12 +723,13 @@ class Solution:
 
 
 class SolutionI(Solution):
-    """Subclass of general solution for the particular case of
-    Phase I solution"""
+    """Subclass of general solution for the particular case of a
+    Phase I solution."""
     pass    # The general case is valid, no overload required
 
 
 # Phase II
+
 SolvingStatsTimeslot = namedtuple("SolvingStatsTimeslot",
                                   ["workload", "ondemand_workload",
                                    "frac_gap", "max_seconds",
@@ -679,6 +737,9 @@ SolvingStatsTimeslot = namedtuple("SolvingStatsTimeslot",
                                    "status", "lower_bound", "optimal_cost"
                                    ]
                                   )
+
+SolvingStatsTimeslot.__doc__ = """This named tuple represents the different
+statistics that can be from a solution of a time slot."""
 
 SolvingStatsII = namedtuple("SolvingStatsII",
                             ["workload",
@@ -689,10 +750,40 @@ SolvingStatsII = namedtuple("SolvingStatsII",
                              ]
                             )
 
+SolvingStatsII.__doc__ = """This named tuple represents the different statistics
+that can be gathered from a solution of Phase II."""
+
 
 class PhaseII:
+    """This class is used for solving Phase II. It receives in the constructor
+    a problem (instances and workload for a period) with a solution for Phase I
+    already computed.
+
+    The metdod solve_timeslot() can be used for computing the solution (i.e.,
+    the number of on-demand VMs in addition to the reserved VMs already
+    computed in Phase I) for a time slot with a given workload (which would be
+    the short term workload or STWL).
+
+    The solutions for each workload level are stored in the field
+    'self._solutions'.
+
+    The method solve_period() can be used for computing the solution for all
+    the time slots of the workload contained in the problem given in the
+    constructor. A SolutionII object is stored in the field 'self.solution',
+    in addition to storing the solution for each workload level found in
+    the dictionary 'self._solutions'.
+    """
     def __init__(self, problem, phase_I_solution,
                  title="Optimize cost Phase II", solver=None):
+        """Args:
+            'problem': the problem (instances and workload) to solve.
+            'phase_I_solution': a Solution object with the solution
+                for Phase I. The reserved instances computed there will
+                be used.
+            'title': optional title for the linear programming problem.
+            'solver': optional Pulp solver. It can have custom arguments, such
+                as fracGap and maxSeconds.
+        """
         self.problem = problem
         self.title = title
         if solver is None:
@@ -740,6 +831,14 @@ class PhaseII:
          self.max_performance_cost) = self.compute_max_performance()
 
     def compute_max_performance(self):
+        '''Computes the maximum performance that can be handled with the
+        on-demand VMs.
+
+        Returns a tuple with:
+            - A dataframe with the number of VMs for that solution
+            - The performance obtained, i.e., the maximum performance
+            - The cost
+        '''
         # Obtain the maximum load that can be handled with the on-demand VMs
         # and the dataframe with the number of VMs for that solution
         lloovia_max_perf = LlooviaMaxPerformance(self.ondemand_instances)
@@ -752,7 +851,18 @@ class PhaseII:
                 max_perf, max_perf_cost)
 
     def solve_timeslot(self, workload, solver=None, relaxed=False):
+        """Solve phase II for the workload received. The solution is
+        stored in the field 'self._solutions' using the 'workload' as the
+        key.
 
+        Args:
+            'workload': number with the required workload for the time
+                slot
+            'solver': optional Pulp solver. It can have custom arguments, such
+                as fracGap and maxSeconds.
+            'relaxed': boolean; if True, the problem uses continuous variables
+                instead of integer ones.
+        """
         if workload in self._solutions:
             # This workload was already solved. Nothing to be done
             return
@@ -783,7 +893,7 @@ class PhaseII:
                                          self.max_performance_allocation))
             return
 
-        # Otherwise, we have to solve this timeslot
+        # Otherwise, we have to solve this time slot
         allocation = None
         lower_bound = None
         optimal_cost = None
@@ -849,9 +959,9 @@ class PhaseII:
                                              allocation)
 
     def solve_period(self):
-        """Iterates over each timeslot, solving it and storing the solution
+        """Iterates over each time slot, solving it and storing the solution
         in self._solutions. Finally all solutions are aggregated into a
-        single global solution."""
+        single global solution which is stored in the field 'self.solution'."""
         for load in self.problem.workload:
             self.solve_timeslot(load)
         self.aggregate_solutions()
@@ -859,11 +969,12 @@ class PhaseII:
     def aggregate_solutions(self):
         """Build a SolutionII object from the data in the _solutions
         attribute. It has to convert the dictionary of Solutions for
-        each load-level into a single solution which will contain
-        a list of stats (per timeslot) plus a DataFame with allocations
-        per timeslot"""
+        each load level into a single solution which will contain
+        a list of stats (per time slot) plus a DataFame with allocations
+        per time slot.
+        """
 
-        # Extract global stats from timeslots stats
+        # Extract global stats from time slots stats
         individual_status = StatusList(x.solving_stats.status
                                        for x in self._solutions.values())
         global_status = ("overfull"
@@ -890,7 +1001,7 @@ class PhaseII:
                                   individual_status=individual_status
                                   )
                         )
-        # Compose single allocation dataframe from timeslots allocations
+        # Compose single allocation dataframe from time slots allocations
 
         # Extract the allocation of reserved instances from phase I
         # Since this allocation is identical for any load level, we
@@ -898,13 +1009,13 @@ class PhaseII:
         alloc_I = self.phase_I_solution.allocation
         rsv_instances_I = list(x for x in alloc_I.columns if x.reserved)
         reserved_alloc = alloc_I[rsv_instances_I].iloc[0]
-        # Extend this allocation for all timeslots
+        # Extend this allocation for all time slots
         full_period_rsv_alloc = np.repeat([reserved_alloc.values],
                                           len(self.problem.workload),
                                           axis=0)
-        # Extract the allocation of ondemand instances for each timeslot
-        # Iterating for each timeslot, we lookup in the dictionary of
-        # solutions the one for the workloadlevel in that timeslot
+        # Extract the allocation of ondemand instances for each time slot
+        # Iterating for each time slot, we lookup in the dictionary of
+        # solutions the one for the workloadlevel in that time slot
         full_period_dem_alloc = (np.array(
                      [self._solutions[l].allocation.values[0]
                       for l in self.problem.workload])
@@ -923,10 +1034,12 @@ class PhaseII:
 
 
 class SolutionII(Solution):
+    """Subclass of general solution for the particular case of a
+    Phase II solution."""
     def get_cost_and_perf_dataframe(self):
         """This function is overriden because Phase II solution does
         not use any histogram, nor a list of allocations per load-level,
-        but a list of allocations per timeslot"""
+        but a list of allocations per time slot."""
         if self._full_dataframe is not None:
             return self._full_dataframe
         solution = self.get_allocation_with_data()
@@ -946,17 +1059,24 @@ class SolutionII(Solution):
 
 def get_load_hist_from_load(load, max_bins=None):
     """This function returns a load histogram from the load expressed as
-    a list of load at each interval during the mission time. If no
-    number_of_bins is given, a bin for each load level between the maximum
+    a list of load levels at each time slot during the mission time. If no
+    'max_bins' is given, a bin for each load level between the maximum
     and the minimum will be used.
 
     The histogram is represented with a dictionary where the key is the
-    load level and the value is the number of instants that that load
+    load level and the value is the number of instants where that load
     level was found during the mission time.
 
-    This function is useful to convert a trace of the load for each period
-    into the histogram required for the optimization problem, as expected
-    by the constructor of Llovia.
+    This function is useful to convert a trace of the load for each slot
+    into the histogram required for the optimization problem, which is
+    required by Lloovia.
+
+    Args:
+        'load': list of workload levels for each time slot.
+        'max_bins': maximum number of bins to use. The effective number
+            of bins might be smaller because some bins can be empty if
+            there is no workload level in any time slot that belongs to
+            that bin.
     """
     load = np.array(load)
 
@@ -985,13 +1105,15 @@ class LlooviaMaxPerformance:
     """
     def __init__(self, instances, title="Optimize performance",
                  maximum_cost=None, relaxed=False):
-        """Initalizes the optimization problem. The parameters are:
-        'instances': list of InstanceClass to consider in the deployment. They
-              must be ony on-demand instances
-        'maximum_cost': restriction for the maximum cost. Can be None
-        'relaxed': boolean; if True, the problem uses continuous variables
-              instead of integer ones
-        'title': optional title for the linear programming problem.
+        """Initalizes the optimization problem.
+
+        Args:
+            'instances': list of InstanceClass to consider in the deployment.
+                They must be ony on-demand instances
+            'maximum_cost': restriction for the maximum cost. Can be None
+            'relaxed': boolean; if True, the problem uses continuous variables
+                instead of integer ones
+            'title': optional title for the linear programming problem.
         """
         self.instances = instances
         self.title = title
@@ -1010,9 +1132,7 @@ class LlooviaMaxPerformance:
             self.clouds.add(i.cloud)
 
     def create_variables(self):
-        """Creates the set of variables Y* and X* of the basic problem.
-        Override it if you need to create extra variables (first use
-        super().create_variables() to call the base clase method)"""
+        """Creates the set of variables X* of the basic problem."""
         if self.relaxed:
             kind = LpContinuous
         else:
@@ -1031,10 +1151,8 @@ class LlooviaMaxPerformance:
         """This method creates the PuLP problem, and calls other
         methods to add variables and restrictions to it.
 
-        It initializes the following attributes, which can be
-        useful in derived classes:
-
-          self.prob: instance of the PuLP problem
+        It initializes the attribute 'self.prob' with the
+        instance of the PuLP problem created.
         """
 
         # Create the linear programming problem
@@ -1054,7 +1172,7 @@ class LlooviaMaxPerformance:
 
     def add_all_restrictions(self):
         """This functions uses introspection to discover all implemented
-        methods whose name ends with `_restriction`, and runs them all"""
+        methods whose name ends with `_restriction`, and runs them all."""
         for name in dir(self):
             attribute = getattr(self, name)
             if ismethod(attribute) and name.endswith("_restriction"):
@@ -1085,7 +1203,7 @@ class LlooviaMaxPerformance:
 
     def limit_instances_per_limiting_set_restriction(self):
         """If the limiting set provides a max_vms > 0, then the sum of all
-        instances in that limiting set should be limited to that maximum"""
+        instances in that limiting set should be limited to that maximum."""
         for cloud in self.clouds:
             if cloud.max_vms > 0:
                 self.prob += lpSum([self.vms[ic] for ic in self.instances
@@ -1094,7 +1212,7 @@ class LlooviaMaxPerformance:
 
     def limit_cores_per_limiting_set_restriction(self):
         """If the limiting set provides a max_cores > 0, then the sum of all
-        instance cores in that region should be limited to that maximum"""
+        instance cores in that region should be limited to that maximum."""
         for cloud in self.clouds:
             if cloud.max_cores > 0:
                 self.prob += lpSum([self.vms[ic]*ic.cores
@@ -1104,11 +1222,11 @@ class LlooviaMaxPerformance:
                                    "Max cores for limiting set %r" % (cloud)
 
     def solve(self, *args, **kwargs):
-        """Calls PuLP solver. Accepts the same arguments as a pulp solver"""
+        """Calls PuLP solver. Accepts the same arguments as a pulp solver."""
         return self.prob.solve(*args, **kwargs)
 
     def cost(self):
-        """Gets the cost of the deployment obtained after solving it"""
+        """Gets the cost of the deployment obtained after solving it."""
         if self.prob.status != pulp.LpStatusOptimal:  # Not solved
             raise Exception("Cannot get the cost of an unsolved problem")
         res = 0
@@ -1117,7 +1235,7 @@ class LlooviaMaxPerformance:
         return res
 
     def max_perf(self):
-        """Gets the maximum performance found"""
+        """Gets the maximum performance found."""
         if self.prob.status != pulp.LpStatusOptimal:  # Not solved
             raise Exception("Cannot get the performance "
                             "of an unsolved problem")
@@ -1127,8 +1245,8 @@ class LlooviaMaxPerformance:
         return res
 
     def get_soldf(self, only_used=False):
-        """Returns the solution as a DataFrame. Each columns is an instance
-        clases.  If only_used is True, instance classes never used are not
+        """Returns the solution as a DataFrame. Each column is an instance
+        class. If only_used is True, instance classes never used are not
         included in the DataFrame.
         """
 
@@ -1165,7 +1283,7 @@ class LlooviaMaxPerformance:
 
 def solve_CBC_patched(self, lp, use_mps=True):
     """Solve a MIP problem using CBC, patched from original PuLP function
-    to save a log with cbc's output and take from it the best bound"""
+    to save a log with cbc's output and take from it the best bound."""
 
     def takeBestBoundFromLog(filename):
         try:
