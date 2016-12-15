@@ -7,11 +7,24 @@ import os
 
 
 ###############################################################################
-# Helper functions for performing the synthetic experiments
+# Helper functions for performing the wikipedia experiments
 ###############################################################################
-def load_workload(filename, level):
-    df = pd.read_csv(filename, index_col=0)
-    return df.loc[:, str(level)].values
+def load_workload(filename, year):
+    '''Returns the pages requested per hour for a wikipedia project in a year.
+    Args:
+        filename: filename of the csv file
+        year: string from 2010 to 2015
+
+    Returns:
+        A list of integers. Each value is the number of request in a hour
+        of the year
+    '''
+    year = str(year)
+    load = pd.read_csv(filename, sep=";",
+                       names=["time", "requests"], header=None)
+    load.time = pd.to_datetime(load.time)
+    load = load.set_index(load.time)
+    return load[year].requests.values   # [:8760]  Truncate leap years?
 
 
 def load_infrastructure(filename):
@@ -21,13 +34,13 @@ def load_infrastructure(filename):
 
 def perform_experiment_phase_I(infrastructure_file,
                                workload_file,
-                               level,
+                               year,
                                max_bins,
                                output_file,
                                frac_gap=0.01,
                                max_seconds=10*60):
     problem = lloovia.Problem(load_infrastructure(infrastructure_file),
-                              load_workload(workload_file, level))
+                              load_workload(workload_file, year))
     phaseI = lloovia.PhaseI(problem)
     solver = pulp.COIN(threads=2, fracGap=frac_gap,
                        maxSeconds=max_seconds, msg=1)
@@ -37,7 +50,7 @@ def perform_experiment_phase_I(infrastructure_file,
 
 def perform_experiment_phase_II(infrastructure_file,
                                 workload_file,
-                                level,
+                                year,
                                 phase_I_solution,
                                 output_file,
                                 frac_gap=None,
@@ -54,13 +67,15 @@ def perform_experiment_phase_II(infrastructure_file,
         return
 
     problem = lloovia.Problem(load_infrastructure(infrastructure_file),
-                              load_workload(workload_file, level))
+                              load_workload(workload_file, year))
     solver = pulp.COIN(threads=2, fracGap=frac_gap,
                        maxSeconds=max_seconds, msg=1)
     phaseII = lloovia.PhaseII(problem, solution_I, solver=solver)
 
     phaseII.solve_period()
     phaseII.solution.save(output_file)
+
+## TODO from this line on ...
 
 
 ###############################################################################
@@ -73,24 +88,11 @@ experiment_with_bins_pattern = re.compile(
 experiment_without_bins_pattern = re.compile(
                     r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
                     r"_level_(?P<level>\d+)_nobins.pickle")
-wiki_with_bins_pattern = re.compile(
-                    r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
-                    r"_(?P<year>\d+)"
-                    r"_bins_(?P<bins>\d+)\.pickle")
-wiki_without_bins_pattern = re.compile(
-                    r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
-                    r"_(?P<year>\d+)_nobins.pickle")
-experiment_oracle_pattern = re.compile(
-                    r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
-                    r"_level_(?P<level>\d+)_oracle.pickle")
 
 
 def extract_info_from_filename(filename):
     m1 = re.match(experiment_with_bins_pattern, filename)
     m2 = re.match(experiment_without_bins_pattern, filename)
-    m3 = re.match(experiment_oracle_pattern, filename)
-    m4 = re.match(wiki_with_bins_pattern, filename)
-    m5 = re.match(wiki_without_bins_pattern, filename)
     if m1:
         return (m1.group("folder"),
                 m1.group("case_name"),
@@ -100,21 +102,6 @@ def extract_info_from_filename(filename):
         return (m2.group("folder"),
                 m2.group("case_name"),
                 int(m2.group("level")),
-                None)
-    elif m3:
-        return (m3.group("folder"),
-                m3.group("case_name"),
-                int(m3.group("level")),
-                None)
-    elif m4:
-        return (m4.group("folder"),
-                m4.group("case_name"),
-                int(m4.group("year")),
-                int(m4.group("bins")))
-    elif m5:
-        return (m5.group("folder"),
-                m5.group("case_name"),
-                int(m5.group("year")),
                 None)
     else:
         raise Exception("Filename %s doesnt match expected pattern" % filename)
@@ -130,49 +117,34 @@ def preprocess_filenames(file_list):
     folders = set()
     cases = set()
     levels = set()
-    oracles = set()
     bins = list()
     for f in file_list:
         folder, case, level, max_bins = extract_info_from_filename(f)
         folders.add(folder)
         cases.add(case)
         levels.add(level)
-        oracles.add("oracle" in f)
         bins.append(max_bins)
 
-    if (len(cases) > 1 or len(levels) > 1 or
-            len(folders) > 1 or len(oracles) > 1):
+    if len(cases) > 1 or len(levels) > 1 or len(folders) > 1:
         raise Exception("The list of files to process contains mixed "
                         "experimental scenarios")
 
     folder = folders.pop()
     case = cases.pop()
     level = levels.pop()
-    oracle = oracles.pop()
-    return (folder, case, level, bins, oracle)
+    return (folder, case, level, bins)
 
 
-def get_info_from_experiment(folder, case, level, max_bins, oracle):
+def get_info_from_experiment(folder, case, level, max_bins):
     """Reads the solution of a single experiment from a pickle file,
     extract the relevant data and returns it as a dictionary"""
 
-    if case=="wikipedia":
-        if max_bins is not None:
-            filename = "{}case_{}_{}_bins_{}.pickle".format(
-                            folder, case, level, max_bins)
-        else:
-            filename = "{}case_{}_{}_nobins.pickle".format(
-                            folder, case, level)
+    if max_bins is not None:
+        filename = "{}case_{}_level_{}_bins_{}.pickle".format(
+                        folder, case, level, max_bins)
     else:
-        if max_bins is not None:
-            filename = "{}case_{}_level_{}_bins_{}.pickle".format(
-                            folder, case, level, max_bins)
-        elif oracle:
-            filename = "{}case_{}_level_{}_oracle.pickle".format(
-                            folder, case, level)
-        else:
-            filename = "{}case_{}_level_{}_nobins.pickle".format(
-                            folder, case, level)
+        filename = "{}case_{}_level_{}_nobins.pickle".format(
+                        folder, case, level)
 
     s = lloovia.Solution.load(filename)
 
@@ -191,10 +163,9 @@ def get_info_from_experiment(folder, case, level, max_bins, oracle):
     elif isinstance(s, lloovia.Solution):
         # Ensure that the max_bins stated in the filename matches with
         # the one contained in it (only for SolutionI case, since)
-        if (max_bins != "nobins" and max_bins != "oracle" and
-                s.solving_stats.max_bins != max_bins):
+        if s.solving_stats.max_bins != max_bins:
             raise Exception("The file %s contains data for max_bins=%d" %
-                            (filename, s.max_bins))
+                            filename, s.max_bins)
         status = s.solving_stats.status
         # Store either the optimal solution, or the best known lower bound
         if status == "aborted":
@@ -234,12 +205,11 @@ def summarize_experiment(file_list, output_file=None):
     seconds_to_solve, seconds_to_create, fracGap, maxSeconds, and status).
     """
 
-    folder, case, level, bins, oracle = preprocess_filenames(file_list)
+    folder, case, level, bins = preprocess_filenames(file_list)
 
     data = []
     for max_bins in bins:
-        data.append(get_info_from_experiment(folder, case, level,
-                                             max_bins, oracle))
+        data.append(get_info_from_experiment(folder, case, level, max_bins))
 
     df = pd.DataFrame(data)
     # Reorder columns
@@ -264,22 +234,14 @@ def collect_all_results(file_list, phases_dict, output_file=None):
     re_experiment_summary = re.compile(
                         r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
                         r"_level_(?P<level>\d+)_summary.pickle")
-    re_wikipedia_summary = re.compile(
-                        r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
-                        r"_(?P<year>\d+)_summary.pickle")
 
     def parse_filename(filename):
         "Extracts experiment metadata from the name of the file"
         m1 = re.match(re_experiment_summary, filename)
-        m2 = re.match(re_wikipedia_summary, filename)
         if m1:
             return (m1.group("folder"),
                     m1.group("case_name"),
                     int(m1.group("level")))
-        elif m2:
-            return(m2.group("folder"),
-                   m2.group("case_name"),
-                   int(m2.group("year")))
         else:
             raise Exception("Filename %s "
                             "doesnt match expected pattern" % filename)

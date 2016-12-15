@@ -44,54 +44,92 @@ USE_PAPER_DATASET=True
 PHASES=["phaseI", "phaseII_PP", "phaseII_R", "phaseII"]
 
 # Perfect prediction case
+# Synthetic cases
 all_inputs_with_bins = expand("%s/{phase}/case_{case}_level_{level}_bins_{bins}.pickle" %
                               interim_folder, phase=PHASES[0:2], case=CASES, level=LEVELS, bins=BINS)
 all_inputs_nobins = expand("%s/{phase}/case_{case}_level_{level}_nobins.pickle" %
-                            interim_folder, phase=PHASES[1], case=CASES, level=LEVELS)
+                            interim_folder, phase=PHASES[0], case=CASES, level=LEVELS)
+# Wikipedia cases
+wiki_all_inputs_with_bins = expand("%s/{phase}/case_wikipedia_2014_bins_{bins}.pickle" % 
+                             interim_folder, phase=PHASES[0:2], bins=BINS)
+wiki_all_inputs_nobins = expand("%s/{phase}/case_wikipedia_2014_nobins.pickle" %
+                                interim_folder, phase=PHASES[0])
 
 # Imperfect prediction case (realization)
 realization = expand("%s/{phase}/case_{case}_level_{level}_bins_{bins}.pickle" % 
-                    interim_folder, phase=PHASES[2], case=CASES, level=LEVELS, bins=BINS_REALIZATION)
+                     interim_folder, phase=PHASES[2], case=CASES, level=LEVELS, bins=BINS_REALIZATION)
 oracle = expand("%s/{phase}/case_{case}_level_{level}_oracle.pickle" %
                 interim_folder, phase=PHASES[3], case=CASES, level=LEVELS)
 
-all_inputs = all_inputs_with_bins + all_inputs_nobins + realization # + oracle
+all_inputs = all_inputs_with_bins + all_inputs_nobins + realization + oracle
+all_inputs += wiki_all_inputs_with_bins + wiki_all_inputs_nobins
 
+# Pickles summarizing each experiment
 summaries = expand("%s/{phase}/case_{case}_level_{level}_summary.pickle" %
                   interim_folder, phase=PHASES, case=CASES, level=LEVELS)
-
-all_results_pickle = "data/processed/all_experiments_result.pickle"
-
+wiki_summaries = expand("%s/{phase}/case_wikipedia_{year}_summary.pickle" % 
+                   interim_folder, phase=PHASES, year=[2012,2013,2014])
+experiments_results_pickle = "data/processed/all_experiments_results.pickle"
+wiki_results_pickle = "data/processed/all_wikipedia_results.pickle"
 
 rule create_single_dataframe:
-    input: all_results_pickle
+    input: experiments_results_pickle, wiki_results_pickle
 
 # rule abridge_solutions:
 #     input: phase_I_abridged_solutions
 
 def files_composing_experiment_solution(w):
+    if w.phase in PHASES[0:2]:
+        bins = BINS
+    elif w.phase == PHASES[2]:
+        bins = BINS_REALIZATION
+    else:
+        bins=None
+
+    # This list is valid for phaseI, phaseII_PP and phaseII_R
+    files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
+                  (interim_folder, w.phase, w.case, w.level),
+                  bins=bins)
+
     if w.phase==PHASES[0]:
-        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
-                      (interim_folder, w.phase, w.case, w.level),
-                      bins=BINS
-                      )
+        # For phaseI add also the nobins case
         files.append("%s/%s/case_%s_level_%s_nobins.pickle" % 
                      (interim_folder, w.phase, w.case, w.level))
     elif w.phase==PHASES[1]:
-        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
-                      (interim_folder, w.phase, w.case, w.level),
-                      bins=BINS
-                      )
+        pass
     elif w.phase==PHASES[2]:
-        files = expand("%s/%s/case_%s_level_%s_bins_{bins}.pickle" %
-                      (interim_folder, w.phase, w.case, w.level),
-                      bins=BINS_REALIZATION
-                      )
+        pass
     elif w.phase==PHASES[3]:
+        # For phaseII_O replace the file list for this one
         files = expand("%s/%s/case_%s_level_%s_oracle.pickle" % 
                        (interim_folder, w.phase, w.case, w.level))
     else:
-        raise Exception("Unknown phase: %s", w.phase)
+        raise Exception("Unknown phase for synthetic experiments: %s" % w.phase)
+    return files
+
+def files_composing_wikipedia_solution(w):
+    if w.phase == PHASES[0] or w.phase == PHASES[1]:
+        bins = BINS
+    elif w.phase == PHASES[2]:
+        bins = [40]
+    else:
+        bins = None
+
+    files = expand("%s/%s/case_wikipedia_%s_bins_{bins}.pickle" %
+                   (interim_folder, w.phase, w.year), bins=bins)
+
+    if w.phase == PHASES[0]:
+        files.append("%s/%s/case_wikipedia_%s_nobins.pickle" %
+                     (interim_folder, w.phase, w.year))
+    elif w.phase==PHASES[1]:
+        pass
+    elif w.phase==PHASES[2]:
+        pass
+    elif w.phase==PHASES[3]:
+        files = expand("%s/%s/case_wikipedia_%s_oracle.pickle" %
+                      (interim_folder, w.phase, w.year))
+    else:
+        raise Exception("Unknown phase for wikipedia binning experiment: %s" % w.phase)
     return files
 
 rule summarize_experiment:
@@ -102,12 +140,31 @@ rule summarize_experiment:
         import experiments
         experiments.summarize_experiment(input, output[0])
 
+rule summarize_wikipedia:
+    input: files_composing_wikipedia_solution
+    output: "%s/{phase}/case_wikipedia_{year}_summary.pickle" % interim_folder
+    message: "Summarizing solutions for {wildcards.phase} of binning experiments for wikipedia {wildcards.year}"
+    run:
+        import experiments
+        experiments.summarize_experiment(input, output[0])
+
 rule join_summaries:
     input: summaries
-    output: all_results_pickle
-    message: "Joining all experiment results in single dataframe: {output}"
+    output: experiments_results_pickle
+    message: "Joining all experiment results in a single dataframe: {output}"
     run:
         import experiments
         experiments.collect_all_results(input, 
              dict(phaseI="I", phaseII_PP="II", phaseII_R="R", phaseII="O"),
              output[0])
+
+rule join_wikipedia:
+    input: wiki_summaries
+    output: wiki_results_pickle
+    message: "Joining all wikipedia results in a single dataframe: {output}"
+    run:
+        import experiments
+        experiments.collect_all_results(input, 
+             dict(phaseI="I", phaseII_PP="II", phaseII_R="R"),
+             output[0])
+
