@@ -165,7 +165,7 @@ rule join_wikipedia:
     run:
         import experiments
         experiments.collect_all_results(input, 
-             dict(phaseI="I", phaseII_PP="II", phaseII_R="R", phaseII="O", phaseII_OD="OD"),
+             dict(phaseI="I", phaseII_PP="II", phaseII_R="Naive", phaseII="Oracle", phaseII_OD="No predictor"),
              output[0])
 
 

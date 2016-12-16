@@ -1,0 +1,31 @@
+# Run snakemake to convert all pgf images to pdf
+
+import os
+list_of_pgfs = []
+list_of_pdfs = []
+for filename in os.listdir():
+    if filename.endswith(".pgf"):
+        list_of_pgfs.append(filename)
+        list_of_pdfs.append(filename.replace(".pgf", ".pdf"))
+
+rule all:
+    input: list_of_pdfs
+
+rule compile_with_latex:
+    input: "fig{fig_name}.tex"
+    output: "fig{fig_name}.pdf"
+    message: "Compiling {input}"
+    shell:
+        "latexmk -pdf -silent {input}\n"
+        "latexmk -c {input}\n"
+        "rm {input}"
+
+rule create_auxiliar_tex_file:
+    input: "fig{fig_name}.pgf", "fig-template-latex.jinja"
+    output: "fig{fig_name}.tex"
+    message: "Generating auxiliar {output}"
+    shell:
+        "python generate_fig.py {input[0]} > {output}"
+
+
+
