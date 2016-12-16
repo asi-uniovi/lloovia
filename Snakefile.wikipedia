@@ -38,6 +38,15 @@ wikipedia_phase_II_R = expand("%s/phaseII_R/case_wikipedia_{year}_bins_40.pickle
                                 interim_folder, year=[2013, 2014])
 wikipedia_phase_II_O = expand("%s/phaseII/case_wikipedia_{year}_oracle.pickle" %
                            interim_folder, year=[2013, 2014])
+wikipedia_phase_II_OD = expand("%s/phaseII_OD/case_wikipedia_{year}_bins_40.pickle" %
+                                interim_folder, year=[2013,2014])
+wikipedia_phase_I_multi = expand("%s/phaseI/case_wikipedia_{year}_multi_{provider}_bins_40.pickle" %
+                                interim_folder, year=2014, provider=["Amazon", "Azure", "Both"])
+wikipedia_phase_II_multi = expand("%s/phaseII_PP/case_wikipedia_{year}_multi_{provider}_bins_40.pickle" %
+                                interim_folder, year=2014, provider=["Amazon", "Azure", "Both"])
+
+
+            
 
 # # For the non perfect prediction, one solution per scenario, level and max_bins
 # phase_II_realization = expand("%s/phaseII_R/case_{case}_level_{level}_bins_{bins}.pickle" %
@@ -54,7 +63,9 @@ instances_for_wikipedia_binning_experiments = "%s/instances_for_wikpedia_binning
 
 
 rule all:
-    input: wikipedia_phase_I, wikipedia_phase_II_PP, wikipedia_phase_II_R, wikipedia_phase_II_O
+    input: wikipedia_phase_I, wikipedia_phase_II_PP, wikipedia_phase_II_R, 
+           wikipedia_phase_II_O, wikipedia_phase_II_OD,
+           wikipedia_phase_I_multi, wikipedia_phase_II_multi
 
 rule run_phase_I:
     input: wikipedia_phase_I
@@ -68,6 +79,9 @@ rule run_phase_II_R:
 rule run_phase_II_O:
     input: wikipedia_phase_II_O
 
+rule run_phase_II_OD:
+    input: wikipedia_phase_II_OD
+
 
 rule create_instances_for_wikipedia_binning_experiments:
     input:  "data/processed/benchmarks_wikibench.csv", "data/processed/providers_amazon_data.csv"
@@ -77,9 +91,21 @@ rule create_instances_for_wikipedia_binning_experiments:
        import create_wikipedia_infrastructure as wikipedia
        wikipedia.create_instances_binning_analysis(input[0], input[1], output[0])
 
+rule create_instances_for_wikipedia_multicloud_azure:
+    input: "data/processed/benchmarks_oldisim.csv", "data/processed/providers_{provider}_data.csv"
+    output: "%s/instances_for_wikipedia_multicloud_{provider}.pickle" % interim_folder
+    message: "Creating {wildcards.provider} cloud infrastructure for Wikipedia multiregion analysis"
+    run:
+        import create_wikipedia_infrastructure as wikipedia
+        wikipedia.create_instances_multicloud_analysis(
+                benchmark_data=input[0], 
+                provider_data=input[1], 
+                provider=wildcards.provider,
+                output_file=output[0])
+
 rule solve_wikipedia_Phase_I_with_bins:
     input: instances_for_wikipedia_binning_experiments, "data/processed/traces_en_wikipedia.csv"
-    output: "%s/phaseI/case_wikipedia_{year}_bins_{bins}.pickle" % interim_folder  
+    output: "%s/phaseI/case_wikipedia_{year,\d+}_bins_{bins}.pickle" % interim_folder  
     message: "Solving Phase I for wikipedia {wildcards.year}, with {wildcards.bins} bins"
     run:
        import wikipedia_experiments
@@ -159,6 +185,58 @@ rule solve_wikipedia_phase_II_O:
             max_seconds=1*60*60,
             output_file=output[0]
             )
+
+rule solve_wikipedia_phase_II_OD:
+    input: instances_for_wikipedia_binning_experiments, "data/processed/traces_en_wikipedia.csv"
+    output: "%s/phaseII_OD/case_wikipedia_{year}_bins_40.pickle" % interim_folder  
+    message: "Solving Phase II for wikipedia {wildcards.year}, only on-demand instances"
+    run:
+       import wikipedia_experiments
+       wikipedia_experiments.perform_experiment_phase_II_od_only(
+            infrastructure_file=input[0], workload_file=input[1],
+            year=wildcards.year,
+            frac_gap=None,
+            max_seconds=1*60*60,
+            output_file=output[0]
+            )
+
+rule solve_wikipedia_phase_I_multi:
+    input:  "%s/instances_for_wikipedia_multicloud_azure.pickle" % interim_folder,
+            "%s/instances_for_wikipedia_multicloud_amazon.pickle" % interim_folder,
+            "data/processed/traces_en_wikipedia.csv"
+    output: "%s/phaseI/case_wikipedia_{year}_multi_{provider}_bins_40.pickle" % interim_folder
+    message: "Solving phase I for wikipedia {wildcards.year}, multicloud case, provider {wildcards.provider}"
+    run:
+        import wikipedia_experiments
+        wikipedia_experiments.perform_experiment_multiregion_phase_I(
+            azure_infrastructure_file=input[0],
+            amazon_infrastructure_file=input[1],
+            workload_file=input[2],
+            year=wildcards.year,
+            max_bins=40,
+            providers_to_use=wildcards.provider,
+            output_file=output[0] 
+            )
+
+rule solve_wikipedia_phase_II_multi:
+    input:  "%s/instances_for_wikipedia_multicloud_azure.pickle" % interim_folder,
+            "%s/instances_for_wikipedia_multicloud_amazon.pickle" % interim_folder,
+            "data/processed/traces_en_wikipedia.csv", 
+            "%s/phaseI/case_wikipedia_{year}_multi_{provider}_bins_40.pickle" % interim_folder
+    output: "%s/phaseII_PP/case_wikipedia_{year}_multi_{provider}_bins_40.pickle" % interim_folder
+    message: "Solving phase II for wikipedia {wildcards.year}, multicloud case, provider {wildcards.provider}"
+    run:
+        import wikipedia_experiments
+        wikipedia_experiments.perform_experiment_multiregion_phase_II(
+            azure_infrastructure_file=input[0],
+            amazon_infrastructure_file=input[1],
+            workload_file=input[2],
+            year=wildcards.year,
+            providers_to_use=wildcards.provider,
+            phase_I_solution=input[3],
+            output_file=output[0] 
+            )
+
 #
 #
 # rule solve_case_phase_II_realization:

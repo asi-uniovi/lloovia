@@ -83,6 +83,9 @@ wiki_without_bins_pattern = re.compile(
 experiment_oracle_pattern = re.compile(
                     r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
                     r"_level_(?P<level>\d+)_oracle.pickle")
+wiki_oracle_pattern = re.compile(
+                    r"(?P<folder>.*?)case_(?P<case_name>[a-z]+)"
+                    r"_(?P<year>\d+)_oracle.pickle")
 
 
 def extract_info_from_filename(filename):
@@ -91,6 +94,7 @@ def extract_info_from_filename(filename):
     m3 = re.match(experiment_oracle_pattern, filename)
     m4 = re.match(wiki_with_bins_pattern, filename)
     m5 = re.match(wiki_without_bins_pattern, filename)
+    m6 = re.match(wiki_oracle_pattern, filename)
     if m1:
         return (m1.group("folder"),
                 m1.group("case_name"),
@@ -115,6 +119,11 @@ def extract_info_from_filename(filename):
         return (m5.group("folder"),
                 m5.group("case_name"),
                 int(m5.group("year")),
+                None)
+    elif m6:
+        return (m6.group("folder"),
+                m6.group("case_name"),
+                int(m6.group("year")),
                 None)
     else:
         raise Exception("Filename %s doesnt match expected pattern" % filename)
@@ -152,14 +161,14 @@ def preprocess_filenames(file_list):
     return (folder, case, level, bins, oracle)
 
 
-def get_info_from_experiment(folder, case, level, max_bins, oracle):
-    """Reads the solution of a single experiment from a pickle file,
-    extract the relevant data and returns it as a dictionary"""
-
-    if case=="wikipedia":
+def compose_filename(folder, case, level, max_bins, oracle):
+    if case == "wikipedia":
         if max_bins is not None:
             filename = "{}case_{}_{}_bins_{}.pickle".format(
                             folder, case, level, max_bins)
+        elif oracle:
+            filename = "{}case_{}_{}_oracle.pickle".format(
+                            folder, case, level)
         else:
             filename = "{}case_{}_{}_nobins.pickle".format(
                             folder, case, level)
@@ -173,7 +182,14 @@ def get_info_from_experiment(folder, case, level, max_bins, oracle):
         else:
             filename = "{}case_{}_level_{}_nobins.pickle".format(
                             folder, case, level)
+    return filename
 
+
+def get_info_from_experiment(folder, case, level, max_bins, oracle):
+    """Reads the solution of a single experiment from a pickle file,
+    extract the relevant data and returns it as a dictionary"""
+
+    filename = compose_filename(folder, case, level, max_bins, oracle)
     s = lloovia.Solution.load(filename)
 
     # Extract info, depending on whether it is a phaseI or phaseII solution

@@ -68,7 +68,9 @@ all_inputs += wiki_all_inputs_with_bins + wiki_all_inputs_nobins
 summaries = expand("%s/{phase}/case_{case}_level_{level}_summary.pickle" %
                   interim_folder, phase=PHASES, case=CASES, level=LEVELS)
 wiki_summaries = expand("%s/{phase}/case_wikipedia_{year}_summary.pickle" % 
-                   interim_folder, phase=PHASES, year=[2012,2013,2014])
+                   interim_folder, phase=PHASES[:2], year=[2014])
+wiki_summaries += expand("%s/{phase}/case_wikipedia_{year}_summary.pickle" % 
+                    interim_folder, phase=PHASES[2:]+["phaseII_OD"], year=[2013, 2014])
 experiments_results_pickle = "data/processed/all_experiments_results.pickle"
 wiki_results_pickle = "data/processed/all_wikipedia_results.pickle"
 
@@ -110,7 +112,7 @@ def files_composing_experiment_solution(w):
 def files_composing_wikipedia_solution(w):
     if w.phase == PHASES[0] or w.phase == PHASES[1]:
         bins = BINS
-    elif w.phase == PHASES[2]:
+    elif w.phase == PHASES[2] or w.phase == "phaseII_OD":
         bins = [40]
     else:
         bins = None
@@ -121,9 +123,7 @@ def files_composing_wikipedia_solution(w):
     if w.phase == PHASES[0]:
         files.append("%s/%s/case_wikipedia_%s_nobins.pickle" %
                      (interim_folder, w.phase, w.year))
-    elif w.phase==PHASES[1]:
-        pass
-    elif w.phase==PHASES[2]:
+    elif w.phase==PHASES[1] or w.phase==PHASES[2] or w.phase=="phaseII_OD":
         pass
     elif w.phase==PHASES[3]:
         files = expand("%s/%s/case_wikipedia_%s_oracle.pickle" %
@@ -165,6 +165,7 @@ rule join_wikipedia:
     run:
         import experiments
         experiments.collect_all_results(input, 
-             dict(phaseI="I", phaseII_PP="II", phaseII_R="R"),
+             dict(phaseI="I", phaseII_PP="II", phaseII_R="R", phaseII="O", phaseII_OD="OD"),
              output[0])
+
 

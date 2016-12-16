@@ -647,8 +647,12 @@ class Solution:
         for all reserved instances."""
         # Get detailed data about the allocation and VM characteristics
         aux = self.get_allocation_with_data()
+        if aux.empty:
+            return 0
         # Extract data about reserved instances
-        reserved = aux.loc[pd.IndexSlice[:, True],]
+        reserved = aux.query("rsv==True")
+        if reserved.empty:
+            return 0
         # Take the allocation of the first load-level (the reserved allocation
         # is the same for any load-level) and compute the performance it gives
         perf = (reserved.iloc[:, 1] * reserved.perf).sum()
