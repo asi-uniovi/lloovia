@@ -1462,8 +1462,8 @@
 \definecolor{currentstroke}{rgb}{0.800000,0.800000,0.800000}%
 \pgfsetstrokecolor{currentstroke}%
 \pgfsetdash{}{0pt}%
-\pgfpathmoveto{\pgfqpoint{0.487280in}{0.435400in}}%
-\pgfpathlineto{\pgfqpoint{0.487280in}{2.372900in}}%
+\pgfpathmoveto{\pgfqpoint{0.487280in}{2.372900in}}%
+\pgfpathlineto{\pgfqpoint{3.199780in}{2.372900in}}%
 \pgfusepath{stroke}%
 \end{pgfscope}%
 \begin{pgfscope}%
@@ -1495,8 +1495,8 @@
 \definecolor{currentstroke}{rgb}{0.800000,0.800000,0.800000}%
 \pgfsetstrokecolor{currentstroke}%
 \pgfsetdash{}{0pt}%
-\pgfpathmoveto{\pgfqpoint{0.487280in}{2.372900in}}%
-\pgfpathlineto{\pgfqpoint{3.199780in}{2.372900in}}%
+\pgfpathmoveto{\pgfqpoint{0.487280in}{0.435400in}}%
+\pgfpathlineto{\pgfqpoint{0.487280in}{2.372900in}}%
 \pgfusepath{stroke}%
 \end{pgfscope}%
 \begin{pgfscope}%
@@ -1592,7 +1592,7 @@
 \definecolor{textcolor}{rgb}{0.150000,0.150000,0.150000}%
 \pgfsetstrokecolor{textcolor}%
 \pgfsetfillcolor{textcolor}%
-\pgftext[x=0.898391in,y=0.558512in,left,base]{\color{textcolor}\rmfamily\fontsize{8.000000}{9.600000}\selectfont Load}%
+\pgftext[x=0.898391in,y=0.558512in,left,base]{\color{textcolor}\rmfamily\fontsize{8.000000}{9.600000}\selectfont Workload}%
 \end{pgfscope}%
 \end{pgfpicture}%
 \makeatother%

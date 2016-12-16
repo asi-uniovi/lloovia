@@ -2,6 +2,10 @@
 # coding: utf-8
 
 include: "Snakefile.definitions"
+
+#################################################################################
+# Initial Python code for setup
+#################################################################################
 import os,sys,inspect
 currentdir = os.path.dirname(
     os.path.abspath(inspect.getfile(inspect.currentframe()))
@@ -11,34 +15,6 @@ sys.path.insert(0, os.path.join(currentdir, "src/visualization"))
 sys.path.insert(0, os.path.join(currentdir, "src/data"))
 
 interim_folder = "/tmp/interim"
-#interim_folder = "data/interim"
-# #
-# # PHASE I: Files to aggregate
-# # One file per scenario, level and each max_bins value
-# phase_I = expand("%s/phaseI/case_{case}_level_{level}_bins_{bins}.pickle" % 
-#                  interim_folder, case=CASES, level=LEVELS, bins=BINS)
-# # result
-# phase_I_abridged_solutions = expand("%s/phaseI/case_{case}_level_{level}_abridged.pickle" % interim_folder, case=CASES, level=LEVELS)
-# 
-# # Append also one file per scenario, level and the case max_bins=None
-# phase_I.extend(expand("%s/phaseI/case_{case}_level_{level}_nobins.pickle" %
-#                       interim_folder, case=CASES, level=LEVELS))
-# 
-# # PHASE II DESIRED RESULTS
-# # For the Perfect Prediction, one solution per scenario, level and max_bins
-# phase_II_PP = expand("%s/phaseII_PP/case_{case}_level_{level}_bins_{bins}.pickle" % 
-#                      interim_folder, case=CASES, level=LEVELS, bins=BINS)
-# 
-# # For the non perfect prediction, one solution per scenario, level and max_bins
-# phase_II_realization = expand("%s/phaseII_R/case_{case}_level_{level}_bins_{bins}.pickle" %
-#                               interim_folder, case=CASES, level=LEVELS, bins=[20])
-# 
-# # NOTE: Only for max_bins=20 to reproduce the results in the paper.
-# # Replace with bins=BINS to get results for all max_bins values
-# 
-# # For the oracle, one solution per scenario and level (it uses max_bins=None)
-# phase_II_oracle = expand("%s/phaseII/case_{case}_level_{level}_oracle.pickle" %
-#                         interim_folder, case=CASES, level=LEVELS)
 
 USE_PAPER_DATASET=True
 PHASES=["phaseI", "phaseII_PP", "phaseII_R", "phaseII"]
@@ -71,11 +47,20 @@ wiki_summaries = expand("%s/{phase}/case_wikipedia_{year}_summary.pickle" %
                    interim_folder, phase=PHASES[:2], year=[2014])
 wiki_summaries += expand("%s/{phase}/case_wikipedia_{year}_summary.pickle" % 
                     interim_folder, phase=PHASES[2:]+["phaseII_OD"], year=[2013, 2014])
+
+
+
 experiments_results_pickle = "data/processed/all_experiments_results.pickle"
 wiki_results_pickle = "data/processed/all_wikipedia_results.pickle"
+wiki_multi_results_pickles = expand("data/processed/case_wikipedia_2014_multi_{which}_bins_40.pickle",
+                                     which=["Amazon", "Azure", "Both"])
 
-rule create_single_dataframe:
-    input: experiments_results_pickle, wiki_results_pickle
+
+#################################################################################
+# MAIN RULE
+#################################################################################
+rule prepare_all_results:
+    input: experiments_results_pickle, wiki_results_pickle, wiki_multi_results_pickles
 
 # rule abridge_solutions:
 #     input: phase_I_abridged_solutions
@@ -168,4 +153,10 @@ rule join_wikipedia:
              dict(phaseI="I", phaseII_PP="II", phaseII_R="Naive", phaseII="Oracle", phaseII_OD="No predictor"),
              output[0])
 
+
+rule copy_wikipedia_multicloud_solutions:
+    input: "%s/phaseII_PP/case_wikipedia_2014_multi_{which}_bins_40.pickle" % interim_folder
+    output: "data/processed/case_wikipedia_2014_multi_{which}_bins_40.pickle"
+    message: "Copying results of wikipedia multicloud experiment, provider {wildcards.which}"
+    shell: "cp {input} {output}"
 

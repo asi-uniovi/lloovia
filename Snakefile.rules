@@ -171,4 +171,3 @@ else:
             import os
             por.generate_qps_json(os.path.dirname(str(input[0])), str(output))
 
-  
