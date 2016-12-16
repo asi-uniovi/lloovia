@@ -1,45 +1,13 @@
 lloovia
 ==============================
 
-LLOOVIA: Load Level based OptimizatiOn of VIrtual machine Allocation
+> LLOOVIA: Load Level based OptimizatiOn of VIrtual machine Allocation
 
-This repository contains the supplementary material for the paper: "Optimal allocation of virtual machines in multi-cloud environments with reserved and on-demand pricing"
+This repository contains the supplementary material for the paper: "Optimal allocation of virtual machines in multi-cloud environments with reserved and on-demand pricing".
 
-Project Organization
-------------
+This material comprises the datasets used to generate the tables and figures in the paper, as well as all `lloovia` library and all necessary scripts to ensure the repeatability of the experiments. In addition, some scripts to download/update the data from cloud providers, Wikipedia traces, etc. are also provided, but not used by default to ensure the same results than the ones shown in the paper.
 
-    ├── LICENSE
-    ├── Makefile           <- Makefile with commands like `make data` or `make train`
-    ├── README.md          <- The top-level README for developers using this project.
-    ├── data
-    │   ├── external       <- Unused ?
-    │   ├── interim        <- Pickle files with intermediate results
-    │   ├── processed      <- Processed wikipedia traces, prices of providers, etc
-    │   ├── paper          <- Processed data used in the paper (for replication)
-    │   └── raw            <- To download raw data
-    │
-    ├── docs               <- Developer's documentation of Lloovia modules
-    │
-    ├── models             <- Unused?
-    │
-    ├── notebooks          <- Jupyter notebooks with presentation of experiments and results
-    │
-    ├── references         <- Unused ?
-    │
-    ├── reports            <- HTML or PDF versions of Notebooks
-    │   └── figures        <- Generated graphics and figures to be used in paper
-    │
-    ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-    │                         generated with `pip freeze > requirements.txt`
-    │
-    ├── src                <- Source code of Llovia and auxiliar python scripts
-    │   ├── __init__.py    <- Makes src a Python module
-    │   ├── data           <- Scripts to download or generate data
-    │   ├── process_data   <- Scripts to turn raw data into the input required
-    │   ├── solve          <- Lloovia implementation
-    │   └── visualization  <- Scripts to create exploratory and results oriented visualizations
-    └── tox.ini            <- tox file with settings for running tox; see tox.testrun.org
+To repeat the experiments you will need Python 3, several scientific packages (`numpy`, `pandas`, etc.) the LP solver `COIN-cbc` and the python library `PuLP` used to model the LP problem. To automate the large number of scripts to run and the correct order to do so `Snakemake` is used. In short we will provide more detailed installation and running instructions.
 
-
---------
+But you can see the results without having to re-run the experiments, because the most relevant information is presented in form of Jupyter Notebooks, which can be read directly from GitHub's web interface (see `notebooks` folder).
 
