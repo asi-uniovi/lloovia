@@ -22,10 +22,12 @@ rule compile_with_latex:
 
 rule create_auxiliar_tex_file:
     input: "fig{fig_name}.pgf", "fig-template-latex.jinja"
-    output: "fig{fig_name}.tex"
+    output: temp("fig{fig_name}.tex")
     message: "Generating auxiliar {output}"
     shell:
         "python generate_fig.py {input[0]} > {output}"
 
 
-
+rule cleanall:
+    """Clean temporary tex and final pdfs"""
+    shell: "rm -f fig*tex fig*pdf"
