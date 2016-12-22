@@ -9,7 +9,7 @@ These instructions are aimed at Linux platforms. However, since anaconda and coi
 To be able to reproduce the experiments in this repository, you'll need Python 3 and several scientific and graphics packages. The easisest way to get them all is to install [conda][1] or [miniconda][2] and then run the following command:
 
 ```
-conda create -f lloovia_conda_env.yml
+conda env create -f lloovia_conda_env.yml
 ```
 
 All required packages in the appropiate version will be downloaded and installed in a local folder. Nothing will be installed in your global system path, so you can safely run it even if you already have a working python installation. As a result, a "conda enviroment" called `lloovia` will be created.  You can check that it is visible with `conda list`. To use the environment you have to "activate" it with the command:
