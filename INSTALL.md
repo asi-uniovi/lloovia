@@ -43,6 +43,19 @@ The version of `cbc` used by the authors is `2.8.7`
 
 # Running the experiments
 
+Notice that running the experiments requires a great deal of memory and disk. At least 6 GB of memory are recommended. If the machine does not have that ammount of RAM, a swap file can be added with these commands:
+
+```
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+```
+
+These commands work on an Ubuntu 16.06 server. Check your distribution documentation if it is different.
+
+Regarding disk space, running all the experiments requires at least 2 GB of free space.
+
 All experiments are automated using [snakemake][3] (which is also installed as part of the `lloovia` environment). This is a tool similar to standard `make` but more appropiate to manage complex workflows which involve multiple files with similar names which use the same rule to be generated, and integrates well with python code.
 
 Several `Snakemake` files are provided, and each one contains rules to perform specific experiments. The most important tasks are:
