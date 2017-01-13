@@ -14,8 +14,7 @@ sys.path.insert(0, os.path.join(currentdir, "src/data"))
 
 include: "Snakefile.rules"
 
-interim_folder = "/tmp/interim"
-#interim_folder = "data/interim"
+interim_folder = "data/interim"
 
 # PHASE I DESIRED RESULTS
 # One file per scenario, level and each max_bins value
