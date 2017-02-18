@@ -220,8 +220,8 @@ class Lloovia:
     variable is the number of machines executed of instance class `ic` when the
     workload is `l`.
 
-    All possible combinations of the tuple (it) for reserved instances
-    and (it,l) for on-demand instances are precomputed in the method
+    All possible combinations of the tuple (ic) for reserved instances
+    and (ic,l) for on-demand instances are precomputed in the method
     `create_problem` and stored in `self.mapping_res` y `self.mapping_dem`
     respectively.
     """
