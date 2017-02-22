@@ -3,7 +3,7 @@ lloovia
 
 > LLOOVIA: Load Level based OptimizatiOn of VIrtual machine Allocation
 
-This repository contains the supplementary material for the paper: "[Optimal allocation of virtual machines in multi-cloud environments with reserved and on-demand pricing][1]" (Future Generation Computer Systems, 2017, in press).
+This repository contains the supplementary material for the paper: "[Optimal allocation of virtual machines in multi-cloud environments with reserved and on-demand pricing][1]" (Future Generation Computer Systems, Volume 71, June 2017, Pages 129-144, ISSN 0167-739X)
 
 This material comprises the datasets used to generate the tables and figures in the paper, as well as all `lloovia` library and all necessary scripts to ensure the repeatability of the experiments. In addition, some scripts to download/update the data from cloud providers, Wikipedia traces, etc. are also provided, but not used by default to ensure the same results as the ones shown in the paper.
 
