@@ -30,10 +30,10 @@ def problems_to_yaml(problems: typing.List[lloovia.Problem]):
             self.count += 1
             return result
 
-    def id_to_valid_yaml(id):
+    def id_to_valid_yaml(identifier):
         '''YAML ids have to be alphanumeric or numeric characters, so the
         invalid characters are substituted by "-".'''
-        return re.sub('[^0-9a-zA-Z]', '-', id)
+        return re.sub('[^0-9a-zA-Z]', '-', identifier)
 
     # These sets are used to avoid duplications
     limiting_sets = set()
