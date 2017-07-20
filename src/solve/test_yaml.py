@@ -35,7 +35,8 @@ class TestLlooviaYaml(unittest.TestCase):
         '''Test that problems_to_yaml() can create a valid YAML file with two simple problems,
         one for Phase I and another for Phase II.
         '''
-        yaml_output = lloovia_yaml.problems_to_yaml(
+        converter = lloovia_yaml.Converter()
+        yaml_output = converter.problems_to_yaml(
             [self.problem_phase_i, self.problem_phase_ii])
 
         converted_yaml = yaml.safe_load(yaml_output)
