@@ -4,6 +4,7 @@ import yaml
 import jsonschema
 
 import lloovia
+import lloovia_yaml
 
 class TestLlooviaYaml(unittest.TestCase):
     '''Tests functions to convert to YAML'''
@@ -34,7 +35,7 @@ class TestLlooviaYaml(unittest.TestCase):
         '''Test that problems_to_yaml() can create a valid YAML file with two simple problems,
         one for Phase I and another for Phase II.
         '''
-        yaml_output = lloovia.problems_to_yaml(
+        yaml_output = lloovia_yaml.problems_to_yaml(
             [self.problem_phase_i, self.problem_phase_ii])
 
         converted_yaml = yaml.safe_load(yaml_output)
@@ -42,7 +43,6 @@ class TestLlooviaYaml(unittest.TestCase):
         with open("problem.schema.yaml") as file:
             yaml_schema = yaml.safe_load(file)
         jsonschema.validate(converted_yaml, schema=yaml_schema)
-
 
 if __name__ == '__main__':
     unittest.main()
