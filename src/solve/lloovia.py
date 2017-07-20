@@ -1289,7 +1289,7 @@ def problems_to_yaml(problems: typing.List[Problem]):
             self.count = 0
             self.prefix = prefix
 
-        @lru_cache()
+        @lru_cache(maxsize=None)
         def get_id(self, name: str):
             result = "{}{}-{}".format(self.prefix,
                                       self.count, id_to_valid_yaml(name))
@@ -1402,6 +1402,7 @@ def problems_to_yaml(problems: typing.List[Problem]):
              'Problems:', *problem_lines]
 
     return "\n".join(lines)
+
 
 # The following function is used to monkeypatch part of PuLP code.
 # This modification is aimed to get the value of the optimal best bound
