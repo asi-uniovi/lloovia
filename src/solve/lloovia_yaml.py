@@ -1,3 +1,5 @@
+"""Converter from lloovia to YAML"""
+
 import typing
 import re
 from functools import lru_cache
@@ -13,29 +15,114 @@ class Converter(object):
         self._limiting_sets_lines = []
         self._instances_lines = []
         self._perf_lines = []
+        self._solution_lines = []
 
         self._ic_id_factory = _IdFactory(prefix="ic")
         self._ls_id_factory = _IdFactory(prefix="ls")
+        self._solution_id_factory = _IdFactory(prefix="sol")
+        self._problem_id_factory = _IdFactory(prefix="problem")
 
+    def _compose_problem_lines(self):
+        return ['Limiting_sets:', *self._limiting_sets_lines,
+                'Instance_classes:', *self._instances_lines,
+                'Apps:', *self._apps_lines,
+                'Workloads:', *self._workloads_lines,
+                'Performances:', *self._perf_lines,
+                'Problems:', *self._problem_lines]
 
     def problems_to_yaml(self, problems: typing.List[lloovia.Problem]):
         self.__process_problems(problems)
-        lines = ['Limiting_sets:', *self._limiting_sets_lines,
-                 'Instance_classes:', *self._instances_lines,
-                 'Apps:', *self._apps_lines,
-                 'Workloads:', *self._workloads_lines,
-                 'Performances:', *self._perf_lines,
-                 'Problems:', *self._problem_lines]
+        return "\n".join(self._compose_problem_lines())
+
+    def solutions_to_yaml(self, solutions: typing.List[lloovia.Solution]):
+        problems = []
+        for solution in solutions:
+            problems.append(solution.problem)
+
+        self.__process_problems(problems)
+
+        for solution in solutions:
+            self._process_solution(solution)
+
+        lines = [*self._compose_problem_lines(),
+                 *self._compose_solution_lines()]
 
         return "\n".join(lines)
 
+    @staticmethod
+    def _generate_solving_stats_lines(solution):
+        stats = solution.solving_stats
+
+        # TODO: check everything about bins
+        binning = stats.max_bins != None
+        if binning:
+            binning_lines = ([
+                '          n_bins: {}'.format(stats.max_bins),
+                '          effective_bins: {}'.format(stats.max_bins),
+                ])
+        else:
+            binning_lines = []
+
+        return ([
+            '      optimal_cost: {}'.format(stats.optimal_cost),
+            '      creation_time: {}'.format(stats.creation_time),
+            '      solving_time: {}'.format(stats.solving_time),
+            '      algorithm:',
+            '        lloovia:',
+            '          binning: {}'.format(binning),
+            *binning_lines
+            ])
+
+    def _generate_reserved_allocation_lines(self, solution):
+        df_allocation = solution.get_allocation()
+        df_allocation.columns.name = 'VM'
+        df_with_res_info = df_allocation.T.reset_index().assign(
+            reserved=lambda x: x.VM.map(lambda x: x.reserved))
+        df_res = df_with_res_info[df_with_res_info.reserved]
+
+        ics = []
+        vms_numbers = []
+        for i, instance_class in enumerate(df_res.VM):
+            ic_id = self._ic_id_factory.get_id(str(instance_class))
+            ics.append('*{}'.format(ic_id))
+            vms_numbers.append(df_res.iloc[i, 1])
+
+        return ['      instance_classes: [{}]'.format(
+            ', '.join(ics)),
+                '      vms_number: {}'.format(vms_numbers)]
+
+    def _process_solution(self, solution):
+        solution_id = self._solution_id_factory.get_id_from_object(solution)
+
+        if isinstance(solution, lloovia.SolutionI):
+            phase = 1
+        else:
+            phase = 2
+
+        problem_id = self._problem_id_factory.get_id_from_object(solution.problem)
+
+        # TODO: handle unfeasible solutions, phase II solutions, etc.
+        self._solution_lines.extend([
+            '  - &{}'.format(solution_id),
+            '    id: {}'.format(solution_id),
+            '    phase: {}'.format(phase),
+            '    problem: *{}'.format(problem_id),
+            '    solving_stats:',
+            *Converter()._generate_solving_stats_lines(solution),
+            '    reserved_allocation:',
+            *self._generate_reserved_allocation_lines(solution)])
+
+    def _compose_solution_lines(self):
+        return ['Solutions:', *self._solution_lines]
+
     def __process_performance(self, app_id, problems):
-        problem = problems[0]
         self._perf_lines = ([
             '    - &Performance1',
             '      id: Performance1',
             '      values:'])
 
+        # take the first problem: the performance should be the same for all
+        problem = problems[0]
         for instance in problem.instances:
             instance_id = str(instance)
             perf = instance.performance
@@ -52,37 +139,37 @@ class Converter(object):
         will be created. In addtion, the performances are the same for
         all problems, so there is going to be only a Performance1 object.
         '''
+        app_id = self.__process_apps()
+
         # These sets are used to avoid duplications
         limiting_sets = set()
         instance_classes = set()
 
-        app_id = self.__process_apps()
-
         workload_index = 0
-        for i_problem, problem in enumerate(problems):
-            self.__process_problem(app_id, i_problem, instance_classes, limiting_sets, problem,
+        for problem in problems:
+            self.__process_problem(app_id, instance_classes, limiting_sets, problem,
                                    workload_index)
             workload_index += 1
 
         self.__process_performance(app_id, problems)
 
-    def __process_problem(self, app_id, i_problem, instance_classes, limiting_sets, problem,
+    def __process_problem(self, app_id, instance_classes, limiting_sets, problem,
                           workload_index):
         workloads_per_problem = []
 
+        problem_id = self._problem_id_factory.get_id_from_object(problem)
         workload_id = 'Workload' + str(workload_index)
-        description = '    description: Workload for app {} in problem Problem{}'
+        description = '    description: Workload for app {} in problem {}'
         self._workloads_lines.extend([
             '  - &{}'.format(workload_id),
             '    id: {}'.format(workload_id),
-            description.format(app_id, str(i_problem)),
+            description.format(app_id, problem_id),
             '    values: [{}]'.format(
                 ", ".join(str(i) for i in problem.workload)),
             '    app: *{}'.format(app_id)])
 
         workloads_per_problem.append(workload_id)
 
-        problem_id = 'Problem' + str(i_problem)
         self._problem_lines.extend([
             '  - &{}'.format(problem_id),
             '    id: {}'.format(problem_id),
@@ -134,22 +221,35 @@ class Converter(object):
         return app_id
 
 class _IdFactory:
-    '''Generates valid-YAML and unique identifiers from strings, which
-    are assumed to be unique names that can be invalid YAML. The
-    identifiers are a prefix ("id" by default), plus a number different
-    for each input string plus the string itself converted to valid
-    YAML.
-    '''
+    '''Generates valid-YAML and unique identifiers from unique strings or objects'''
     def __init__(self, prefix="id"):
         self.count = 0
         self.prefix = prefix
 
     @lru_cache(maxsize=None)
     def get_id(self, name: str):
+        '''Generates valid-YAML and unique identifiers from unique strings,
+        which are assumed to be unique names that can be invalid YAML. The
+        identifiers are a prefix ("id" by default), plus a number different
+        for each input string plus the string itself converted to valid
+        YAML.
+        '''
         result = "{}{}-{}".format(self.prefix,
-                                  self.count, _IdFactory.id_to_valid_yaml(name))
+                                  self.count,
+                                  _IdFactory.id_to_valid_yaml(name))
         self.count += 1
         return result
+
+    @lru_cache(maxsize=None)
+    def get_id_from_object(self, obj: object):
+        '''Generates a unique identifier for an object. The argument obj is
+        not directly used, but is required to have a differnt id for each object in the cache.
+        '''
+        result = "{}{}".format(self.prefix,
+                               self.count)
+        self.count += 1
+        return result
+
 
     @staticmethod
     def id_to_valid_yaml(identifier):
