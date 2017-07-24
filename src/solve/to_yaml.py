@@ -1,5 +1,5 @@
-﻿import os
-import sys
+﻿"""Scritp to recursively convert lloovia problems and solutions in a directory to YAML"""
+import os
 import argparse
 import pickle
 
@@ -16,7 +16,7 @@ def convert_files(command, directory):
     num_files = sum([len(files) for r, d, files in os.walk(directory)])
     num_processed = 0
     num_skipped = 0
-    for root, dirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for name in files:
             filename, file_extension = os.path.splitext(name)
 
@@ -59,7 +59,7 @@ def convert(command, root_dir, base_filename):
 
             if isinstance(obj, lloovia.Solution):
                 if command == 'solutions':
-                   yaml_output = converter.solutions_to_yaml([obj])
+                    yaml_output = converter.solutions_to_yaml([obj])
                 elif command == 'problems':
                     yaml_output = converter.problems_to_yaml([obj.problem])
             else: # It is a lloovia.Problem
@@ -69,7 +69,7 @@ def convert(command, root_dir, base_filename):
                     yaml_output = converter.problems_to_yaml([obj])
 
             converted_yaml = yaml.safe_load(yaml_output)
-            
+
             try:
                 jsonschema.validate(converted_yaml, schema=yaml_schema)
             except jsonschema.ValidationError as exception:
@@ -81,13 +81,14 @@ def convert(command, root_dir, base_filename):
         with open(yaml_name, "w") as file:
             file.write(yaml_output)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Convert lloovia pickle files with problems or solutions to YAML')
+def main():
+    parser = argparse.ArgumentParser(
+        description='Convert lloovia pickle files with problems or solutions to YAML')
     subparser = parser.add_subparsers(help='command', dest='command')
     subparser.required = True
 
-    parser_solutions = subparser.add_parser('solutions', help='convert solutions')
-    parser_problems = subparser.add_parser('problems', help='convert problems')
+    subparser.add_parser('solutions', help='convert solutions')
+    subparser.add_parser('problems', help='convert problems')
 
     parser.add_argument('root_dir', help='root directory to look for lloovia .pickle files',
                         default='convert_files')
@@ -96,3 +97,5 @@ if __name__ == '__main__':
 
     convert_files(args.command, args.root_dir)
 
+if __name__ == '__main__':
+    main()
