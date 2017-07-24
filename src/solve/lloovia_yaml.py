@@ -1,4 +1,4 @@
-"""Converter from lloovia to YAML"""
+﻿"""Converter from lloovia to YAML"""
 
 import typing
 import re
@@ -31,7 +31,7 @@ class Converter(object):
                 'Problems:', *self._problem_lines]
 
     def problems_to_yaml(self, problems: typing.List[lloovia.Problem]):
-        self.__process_problems(problems)
+        self._process_problems(problems)
         return "\n".join(self._compose_problem_lines())
 
     def solutions_to_yaml(self, solutions: typing.List[lloovia.Solution]):
@@ -39,7 +39,7 @@ class Converter(object):
         for solution in solutions:
             problems.append(solution.problem)
 
-        self.__process_problems(problems)
+        self._process_problems(problems)
 
         for solution in solutions:
             self._process_solution(solution)
@@ -120,7 +120,7 @@ class Converter(object):
     def _compose_solution_lines(self):
         return ['Solutions:', *self._solution_lines]
 
-    def __process_performance(self, app_id, problems):
+    def _process_performance(self, app_id, problems):
         self._perf_lines = ([
             '    - &Performance1',
             '      id: Performance1',
@@ -136,7 +136,7 @@ class Converter(object):
                 '          app: *{}'.format(app_id),
                 '          value: {}'.format(perf)])
 
-    def __process_problems(self, problems: typing.List[lloovia.Problem]):
+    def _process_problems(self, problems: typing.List[lloovia.Problem]):
         '''Receives a list of lloovia problems and returns a YAML string
         of problem descriptions.
 
@@ -144,7 +144,7 @@ class Converter(object):
         will be created. In addtion, the performances are the same for
         all problems, so there is going to be only a Performance1 object.
         '''
-        app_id = self.__process_apps()
+        app_id = self._process_apps()
 
         # These sets are used to avoid duplications
         limiting_sets = set()
@@ -152,14 +152,14 @@ class Converter(object):
 
         workload_index = 0
         for problem in problems:
-            self.__process_problem(app_id, instance_classes, limiting_sets, problem,
-                                   workload_index)
+            self._process_problem(app_id, instance_classes, limiting_sets, problem,
+                                  workload_index)
             workload_index += 1
 
-        self.__process_performance(app_id, problems)
+        self._process_performance(app_id, problems)
 
-    def __process_problem(self, app_id, instance_classes, limiting_sets, problem,
-                          workload_index):
+    def _process_problem(self, app_id, instance_classes, limiting_sets, problem,
+                         workload_index):
         workloads_per_problem = []
 
         problem_id = self._problem_id_factory.get_id_from_object(problem)
@@ -215,7 +215,7 @@ class Converter(object):
                 '    max_vms: {}'.format(instance.cloud.max_vms),
                 '    max_cores: {}'.format(instance.cloud.max_cores)])
 
-    def __process_apps(self):
+    def _process_apps(self):
         app_id = 'App0'
         app_name = app_id
 
