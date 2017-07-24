@@ -99,10 +99,15 @@ class Converter(object):
     def _process_solution(self, solution):
         solution_id = self._solution_id_factory.get_id_from_object(solution)
 
-        if isinstance(solution, lloovia.SolutionI):
+        if isinstance(solution, lloovia.SolutionII):
+            phase = 2
+        elif isinstance(solution, lloovia.Solution):
+            # Solution is used instead of SolutionI because, although lloovia defines
+            # a SolutionI class, it never uses it
             phase = 1
         else:
-            phase = 2
+            raise ValueError('Solution should be of type SolutionI or SolutionII. It is {}'.format(
+                type(solution)))
 
         problem_id = self._problem_id_factory.get_id_from_object(solution.problem)
 
