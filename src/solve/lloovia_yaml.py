@@ -74,6 +74,11 @@ class Converter(object):
             ])
 
     def _generate_reserved_allocation_lines(self, solution):
+        status = solution.solving_stats.status
+        if status == 'infeasible' or status == 'unknown_error':
+            return ['      instance_classes: []',
+                    '      vms_number: []']
+
         df_allocation = solution.get_allocation()
         df_allocation.columns.name = 'VM'
         df_with_res_info = df_allocation.T.reset_index().assign(
