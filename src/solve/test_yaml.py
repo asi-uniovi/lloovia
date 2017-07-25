@@ -18,7 +18,7 @@ class TestLlooviaYaml(unittest.TestCase):
                                     reserved=True, price=2.3, performance=5)
 
         ic2 = lloovia.InstanceClass(name="m4.medium", cloud=ls_us_west_m4, max_vms=5,
-                                    reserved=False, price=4.4, performance=6)
+                                    reserved=False, price=4.5, performance=6)
 
         ic3 = lloovia.InstanceClass(name="m4.large", cloud=ls_us_west_m4, max_vms=5,
                                     reserved=False, price=8.2, performance=7)
@@ -29,25 +29,24 @@ class TestLlooviaYaml(unittest.TestCase):
         workload_phase_ii = [5, 2, 9, 9, 99, 999, 88, 60]
 
         self.problem_phase_i = lloovia.Problem(instances=instances, workload=workload_phase_i)
-
         self.problem_phase_ii = lloovia.Problem(instances=instances, workload=workload_phase_ii)
 
-        solving_stats = lloovia.SolvingStatsI(max_bins=10,
-                                              workload=workload_phase_i,
-                                              frac_gap=0.1,
+        load_hist = lloovia.get_load_hist_from_load(workload_phase_i)
+        solving_stats = lloovia.SolvingStatsI(max_bins=None,
+                                              workload=load_hist,
+                                              frac_gap=None,
                                               max_seconds=600,
                                               creation_time=123.4,
                                               solving_time=5421.98,
                                               status='optimal',
-                                              lower_bound=345.3,
-                                              optimal_cost=345.3
+                                              lower_bound=None,
+                                              optimal_cost=100.6
                                              )
 
-        slots = len(workload_phase_i)
-        allocation = pd.DataFrame({'load': workload_phase_i,
-                                   ic1: ([3]*slots),
-                                   ic2: ([5]*slots),
-                                   ic3: ([6]*slots)}).set_index('load', drop=True)
+        allocation = pd.DataFrame({'load': [1, 5, 6, 10, 20, 22, 50],
+                                   ic1: ([4]*7),
+                                   ic2: ([0, 0, 0, 0, 0, 1, 5]),
+                                   ic3: ([0]*7)}).set_index('load', drop=True)
 
         self.solution_phase_i = lloovia.SolutionI(
             problem=self.problem_phase_i,

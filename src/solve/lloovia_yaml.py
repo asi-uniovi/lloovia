@@ -79,7 +79,7 @@ class Converter(object):
             return ['      instance_classes: []',
                     '      vms_number: []']
 
-        df_allocation = solution.get_allocation()
+        df_allocation = solution.get_allocation(only_used=True)
         df_allocation.columns.name = 'VM'
         df_with_res_info = df_allocation.T.reset_index().assign(
             reserved=lambda x: x.VM.map(lambda x: x.reserved))
@@ -92,9 +92,51 @@ class Converter(object):
             ics.append('*{}'.format(ic_id))
             vms_numbers.append(df_res.iloc[i, 1])
 
-        return ['      instance_classes: [{}]'.format(
-            ', '.join(ics)),
+        return ['      instance_classes: [{}]'.format(', '.join(ics)),
                 '      vms_number: {}'.format(vms_numbers)]
+
+    def _generate_allocation_lines(self, solution):
+        status = solution.solving_stats.status
+        if status == 'infeasible' or status == 'unknown_error':
+            return ['      instance_classes: []',
+                    '      vms_number: []']
+
+        df_allocation = solution.get_allocation(only_used=True)
+
+        instance_classes = []
+        ic_ids = [] # instance classes ids
+        for i in df_allocation.columns:
+            instance_classes.append(i)
+
+            ic_id = self._ic_id_factory.get_id(str(i))
+            ic_ids.append('*{}'.format(ic_id))
+
+        workload_histogram = solution.solving_stats.workload
+        workload_tuples = []
+        repeats = []
+        vms_numbers = [] # list for each workload level with the list of vms_numbers
+        for index, row in df_allocation.iterrows():
+            workload_level = index
+            workload_tuples.append('[{}]'.format(workload_level))
+            repeats.append(str(workload_histogram[workload_level]))
+
+            workload_level_allocation = []
+            for i in instance_classes:
+                workload_level_allocation.append(row[i])
+
+            vms_numbers.append(workload_level_allocation)
+
+        result = ['      apps: [*App0]',
+                  '      instance_classes: [{}]'.format(', '.join(ic_ids)),
+                  '      workload_tuples: [{}]'.format(', '.join(workload_tuples)),
+                  '      repeats: [{}]'.format(', '.join(repeats)),
+                  '      vms_number:']
+
+        for i, v in enumerate(vms_numbers):
+            result.extend(['        - #{}'.format(workload_tuples[i]),
+                           '          - {}'.format(list(v))])
+
+        return result
 
     def _process_solution(self, solution):
         solution_id = self._solution_id_factory.get_id_from_object(solution)
@@ -120,7 +162,8 @@ class Converter(object):
             '    solving_stats:',
             *Converter()._generate_solving_stats_lines(solution),
             '    reserved_allocation:',
-            *self._generate_reserved_allocation_lines(solution)])
+            *self._generate_reserved_allocation_lines(solution),
+            '    allocation:', *self._generate_allocation_lines(solution)])
 
     def _compose_solution_lines(self):
         return ['Solutions:', *self._solution_lines]
