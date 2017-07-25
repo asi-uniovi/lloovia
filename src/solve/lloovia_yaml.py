@@ -50,6 +50,14 @@ class Converter(object):
         return "\n".join(lines)
 
     @staticmethod
+    def _none_to_null(value):
+        '''Changes "None" to "null" because YAML requires "null" instead of "None".'''
+        if value is None:
+            return "null"
+        else:
+            return value
+
+    @staticmethod
     def _generate_solving_stats_lines(solution):
         stats = solution.solving_stats
 
@@ -64,13 +72,18 @@ class Converter(object):
             binning_lines = []
 
         return ([
-            '      optimal_cost: {}'.format(stats.optimal_cost),
+            '      optimal_cost: {}'.format(Converter._none_to_null(stats.optimal_cost)),
             '      creation_time: {}'.format(stats.creation_time),
             '      solving_time: {}'.format(stats.solving_time),
             '      algorithm:',
             '        lloovia:',
             '          binning: {}'.format(binning),
-            *binning_lines
+            '          status: {}'.format(stats.status),
+            *binning_lines,
+            '          frac_gap: {}'.format(Converter._none_to_null(stats.frac_gap)),
+            '          max_seconds: {}'.format(Converter._none_to_null(stats.max_seconds)),
+            '          lower_bound: {}'.format(Converter._none_to_null(stats.lower_bound)),
+
             ])
 
     def _generate_reserved_allocation_lines(self, solution):
@@ -132,9 +145,9 @@ class Converter(object):
                   '      repeats: [{}]'.format(', '.join(repeats)),
                   '      vms_number:']
 
-        for i, v in enumerate(vms_numbers):
-            result.extend(['        - #{}'.format(workload_tuples[i]),
-                           '          - {}'.format(list(v))])
+        for i, vm_number in enumerate(vms_numbers):
+            result.extend(['        - # l {}'.format(workload_tuples[i]),
+                           '          - {}'.format(list(vm_number))])
 
         return result
 
@@ -162,8 +175,13 @@ class Converter(object):
             '    solving_stats:',
             *Converter()._generate_solving_stats_lines(solution),
             '    reserved_allocation:',
-            *self._generate_reserved_allocation_lines(solution),
-            '    allocation:', *self._generate_allocation_lines(solution)])
+            *self._generate_reserved_allocation_lines(solution)
+            ])
+
+        if solution.solving_stats.status != 'infeasible':
+            self._solution_lines.extend([
+                '    allocation:', *self._generate_allocation_lines(solution)
+            ])
 
     def _compose_solution_lines(self):
         return ['Solutions:', *self._solution_lines]

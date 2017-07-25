@@ -31,7 +31,7 @@ definitions:
   # Some enumerates for solution status
   status:
       type: string
-      enum: [optimal, trivial, infeasible, aborted, unknown_error, unknown]
+      enum: [optimal, infeasible, integer_infeasible, overfull, trivial, aborted, cbc_error, unknown]
   status_global:
       type: string
       enum: [optimal, overfull]
@@ -129,7 +129,7 @@ definitions:
       type: object
       properties:
         algorithm: { $ref: "#/definitions/algorithm_used"}
-        optimal_cost: { type: number }
+        optimal_cost: { $ref: "#/definitions/numberOrNull" }
         creation_time: { $ref: "#/definitions/nonNegative" }
         solving_time: { $ref: "#/definitions/nonNegative" }
       required: [optimal_cost, creation_time, solving_time]
@@ -138,11 +138,12 @@ definitions:
   global_solving_stats:
     type: object
     properties:
-      default_algorithm: {$ref: "#/definitions/algorithm_used"}
+      default_algorithm: { $ref: "#/definitions/algorithm_used" }
       creation_time: { $ref: "#/definitions/nonNegative" }
       solving_time: { $ref: "#/definitions/nonNegative" }
       optimal_cost: { type: number }
-    required: [creation_time, solving_time, optimal_cost]
+      status: { $ref: "#/definitions/status" }
+    required: [creation_time, solving_time, optimal_cost, status]
     additionalProperties: false
 
   algorithms:
@@ -156,8 +157,8 @@ definitions:
             status: { $ref: "#/definitions/status" }
             gcd_multiplier: {$ref: "#/definitions/nonNegative"}
             n_levels: {$ref: "#/definitions/nonNegativeInteger"}
-            frac_gap: { $ref: "#/definitions/nonNegative" }
-            max_seconds: { $ref: "#/definitions/nonNegative" }
+            frac_gap: { $ref: "#/definitions/numberOrNull" }
+            max_seconds: { $ref: "#/definitions/numberOrNull" }
             lower_bound: {$ref: "#/definitions/numberOrNull"}
           required: [gcd, status, frac_gap, max_seconds]
         required: [malloovia]
@@ -170,9 +171,13 @@ definitions:
           type: object
           properties:
             binning: {type: boolean}
+            status: { $ref: "#/definitions/status" }
             n_bins: {$ref: "#/definitions/nonNegative"}
             effective_bins: {$ref: "#/definitions/nonNegative"}
-          required: [binning]
+            frac_gap: { $ref: "#/definitions/numberOrNull" }
+            max_seconds: { $ref: "#/definitions/numberOrNull" }
+            lower_bound: {$ref: "#/definitions/numberOrNull"}
+          required: [binning, status, frac_gap, max_seconds]
         required: [lloovia]
       additionalProperties: false
 
