@@ -120,5 +120,32 @@ class TestLlooviaYaml(unittest.TestCase):
 
         TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
 
+    def test_aborted_solution_to_yaml(self):
+        '''Tests that solutions_to_yamls() can create a valid YAML file wit infeasible solutions.'''
+        workload_phase_i = [1, 22, 5, 6, 10, 20, 50, 2000]
+        workload_phase_ii = [5, 2, 9, 9, 99, 999, 88, 60]
+
+        self.prepare_problems(workload_phase_i, workload_phase_ii)
+
+        load_hist = lloovia.get_load_hist_from_load(workload_phase_i, max_bins=6000)
+        solving_stats = lloovia.SolvingStatsI(max_bins=6000,
+                                              workload=load_hist,
+                                              frac_gap=0.01,
+                                              max_seconds=600,
+                                              creation_time=15.493958642000052,
+                                              solving_time=338.72762610200016,
+                                              status='aborted',
+                                              lower_bound=501.1,
+                                              optimal_cost=None
+                                             )
+
+        solution_phase_i = lloovia.SolutionI(
+            problem=self.problem_phase_i,
+            solving_stats=solving_stats,
+            allocation=None)
+
+        TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
+
+
 if __name__ == '__main__':
     unittest.main()

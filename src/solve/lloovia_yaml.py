@@ -54,8 +54,16 @@ class Converter(object):
         '''Changes "None" to "null" because YAML requires "null" instead of "None".'''
         if value is None:
             return "null"
-        else:
-            return value
+
+        return value
+
+    @staticmethod
+    def _adapt_status(original_status):
+        '''Changes "unknown_error" to "cbc_error" because that's the name in the schema.'''
+        if original_status == "unknown_error":
+            return "cbc_error"
+
+        return original_status
 
     @staticmethod
     def _generate_solving_stats_lines(solution):
@@ -78,7 +86,7 @@ class Converter(object):
             '      algorithm:',
             '        lloovia:',
             '          binning: {}'.format(binning),
-            '          status: {}'.format(stats.status),
+            '          status: {}'.format(Converter._adapt_status(stats.status)),
             *binning_lines,
             '          frac_gap: {}'.format(Converter._none_to_null(stats.frac_gap)),
             '          max_seconds: {}'.format(Converter._none_to_null(stats.max_seconds)),
@@ -88,7 +96,7 @@ class Converter(object):
 
     def _generate_reserved_allocation_lines(self, solution):
         status = solution.solving_stats.status
-        if status == 'infeasible' or status == 'unknown_error':
+        if status == 'infeasible' or status == 'unknown_error' or status == 'aborted':
             return ['      instance_classes: []',
                     '      vms_number: []']
 
@@ -109,11 +117,6 @@ class Converter(object):
                 '      vms_number: {}'.format(vms_numbers)]
 
     def _generate_allocation_lines(self, solution):
-        status = solution.solving_stats.status
-        if status == 'infeasible' or status == 'unknown_error':
-            return ['      instance_classes: []',
-                    '      vms_number: []']
-
         df_allocation = solution.get_allocation(only_used=True)
 
         instance_classes = []
@@ -178,7 +181,8 @@ class Converter(object):
             *self._generate_reserved_allocation_lines(solution)
             ])
 
-        if solution.solving_stats.status != 'infeasible':
+        status = solution.solving_stats.status
+        if status != 'infeasible' and status != 'unknown_error' and status != 'aborted':
             self._solution_lines.extend([
                 '    allocation:', *self._generate_allocation_lines(solution)
             ])
