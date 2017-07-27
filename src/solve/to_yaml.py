@@ -5,6 +5,7 @@ import pickle
 
 import jsonschema
 import yaml
+import colorama
 
 import lloovia
 import lloovia_yaml
@@ -16,12 +17,14 @@ def convert_files(command, directory):
     num_files = sum([len(files) for r, d, files in os.walk(directory)])
     num_processed = 0
     num_skipped = 0
+    num_errors = 0
     for root, _, files in os.walk(directory):
         for name in files:
             filename, file_extension = os.path.splitext(name)
 
             if file_extension != '.pickle':
-                print('Skipping {}. Extension is not .pickle'.format(name))
+                print(YELLOW + 'Skipping {}. Extension is not .pickle'.format(name),
+                      RESET)
                 num_skipped += 1
                 continue
 
@@ -30,11 +33,14 @@ def convert_files(command, directory):
                 print('Converting {} ({}/{})'.format(name, num_processed, num_files))
                 convert(command, root, filename)
             except Exception as exception:
-                print('Skipping {}. Exception: {}'.format(name, exception))
+                print(RED + '    Skipping {}. Exception: {}'.format(name, exception),
+                      RESET)
                 num_skipped += 1
+                num_errors += 1
 
-    print('Number of processed files:', num_processed)
+    print('\nNumber of processed files:', num_processed)
     print('Number of skipped files:', num_skipped)
+    print('Number of files with errors:', num_errors)
 
 def convert(command, root_dir, base_filename):
     pickle_name = root_dir + '/' + base_filename + ".pickle"
@@ -73,8 +79,8 @@ def convert(command, root_dir, base_filename):
             try:
                 jsonschema.validate(converted_yaml, schema=yaml_schema)
             except jsonschema.ValidationError as exception:
-                print('Validation error for', pickle_name)
-                print('error:', exception.message)
+                print(RED + 'Validation error for', pickle_name)
+                print('error:', exception.message, RESET)
                 return
 
         yaml_name = root_dir + '/' + base_filename + ".yaml"
@@ -82,6 +88,7 @@ def convert(command, root_dir, base_filename):
             file.write(yaml_output)
 
 def main():
+
     parser = argparse.ArgumentParser(
         description='Convert lloovia pickle files with problems or solutions to YAML')
     subparser = parser.add_subparsers(help='command', dest='command')
@@ -98,4 +105,9 @@ def main():
     convert_files(args.command, args.root_dir)
 
 if __name__ == '__main__':
+    colorama.init()
+    YELLOW = colorama.Fore.YELLOW
+    RED = colorama.Fore.RED
+    RESET = colorama.Style.RESET_ALL
+
     main()
