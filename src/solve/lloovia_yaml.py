@@ -69,12 +69,13 @@ class Converter(object):
     def _generate_solving_stats_lines(solution):
         stats = solution.solving_stats
 
-        # TODO: check everything about bins
         binning = stats.max_bins != None
         if binning:
+            histogram = lloovia.get_load_hist_from_load(solution.problem.workload, stats.max_bins)
+            effective_bins = len(histogram)
             binning_lines = ([
                 '          n_bins: {}'.format(stats.max_bins),
-                '          effective_bins: {}'.format(stats.max_bins),
+                '          effective_bins: {}'.format(effective_bins),
                 ])
         else:
             binning_lines = []
