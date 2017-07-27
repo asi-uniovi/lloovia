@@ -95,7 +95,7 @@ class TestLlooviaYaml(unittest.TestCase):
         TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
 
     def test_infeasible_solution_to_yaml(self):
-        '''Tests that solutions_to_yamls() can create a valid YAML file wit infeasible solutions.'''
+        '''Tests that solutions_to_yamls() can create a valid YAML file with infeasible solutions.'''
         workload_phase_i = [1, 22, 5, 6, 10, 20, 50, 2000]
         workload_phase_ii = [5, 2, 9, 9, 99, 999, 88, 60]
 
@@ -121,7 +121,7 @@ class TestLlooviaYaml(unittest.TestCase):
         TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
 
     def test_aborted_solution_to_yaml(self):
-        '''Tests that solutions_to_yamls() can create a valid YAML file wit infeasible solutions.'''
+        '''Tests that solutions_to_yamls() can create a valid YAML file with aborted solutions.'''
         workload_phase_i = [1, 22, 5, 6, 10, 20, 50, 2000]
         workload_phase_ii = [5, 2, 9, 9, 99, 999, 88, 60]
 
