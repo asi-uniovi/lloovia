@@ -258,9 +258,9 @@ class _Converter(object):
 
     def _process_performance(self, app_id, problems):
         self._perf_lines = ([
-            '    - &Performance1',
-            '      id: Performance1',
-            '      values:'])
+            '  - &Performance1',
+            '    id: Performance1',
+            '    values:'])
 
         # take the first problem: the performance should be the same for all
         problem = problems[0]
@@ -268,9 +268,9 @@ class _Converter(object):
             instance_id = str(instance)
             perf = instance.performance
             self._perf_lines.extend([
-                '        - instance_class: *{}'.format(self._ic_id_factory.get_id(instance_id)),
-                '          app: *{}'.format(app_id),
-                '          value: {}'.format(perf)])
+                '    - instance_class: *{}'.format(self._ic_id_factory.get_id(instance_id)),
+                '      app: *{}'.format(app_id),
+                '      value: {}'.format(perf)])
 
     def _process_problems(self, problems: typing.List[lloovia.Problem]):
         '''Receives a list of lloovia problems and returns a YAML string
