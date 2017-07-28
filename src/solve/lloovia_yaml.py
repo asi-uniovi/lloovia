@@ -146,10 +146,12 @@ class Converter(object):
             ic_id = self._ic_id_factory.get_id(str(i))
             ic_ids.append('*{}'.format(ic_id))
 
-        workload_histogram = solution.solving_stats.workload
+        # These values only make sense for phase I solutions
         workload_tuples = []
         repeats = []
-        vms_numbers = [] # list for each workload level with the list of vms_numbers
+        workload_histogram = solution.solving_stats.workload
+
+        vms_numbers = [] # list for each workload level/timeslot with the list of vms_numbers
         for index, row in df_allocation.iterrows():
             workload_level = index
             workload_tuples.append('[{}]'.format(workload_level))
@@ -161,14 +163,30 @@ class Converter(object):
 
             vms_numbers.append(workload_level_allocation)
 
+        # Get a detailed description of the workload for phase I solutions.
+        # Phase II solutions have the workload for each timeslot
+        if isinstance(solution, lloovia.SolutionII):
+            workload_desc_lines = []
+        else: # SolutionI
+            workload_desc_lines = [
+                '      workload_tuples: [{}]'.format(', '.join(workload_tuples)),
+                '      repeats: [{}]'.format(', '.join(repeats))
+                ]
+
         result = ['      apps: [*App0]',
                   '      instance_classes: [{}]'.format(', '.join(ic_ids)),
-                  '      workload_tuples: [{}]'.format(', '.join(workload_tuples)),
-                  '      repeats: [{}]'.format(', '.join(repeats)),
+                  *workload_desc_lines,
                   '      vms_number:']
 
         for i, vm_number in enumerate(vms_numbers):
-            result.extend(['        - # l {}'.format(workload_tuples[i]),
+            if isinstance(solution, lloovia.SolutionII):
+                # Phase II solution uses timeslots
+                comment = '# t: {}'.format(i)
+            else:
+                # Phase I solution uses workload levels
+                comment = '# l: {}'.format(workload_tuples[i])
+
+            result.extend(['        - {}'.format(comment),
                            '          - {}'.format(list(vm_number))])
 
         return result
