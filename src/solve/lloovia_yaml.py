@@ -6,7 +6,15 @@ from functools import lru_cache
 
 import lloovia
 
-class Converter(object):
+def problems_to_yaml(problems: typing.List[lloovia.Problem]):
+    '''Converts a list of lloovia problems to a YAML string.'''
+    return _Converter().problems_to_yaml(problems)
+
+def solutions_to_yaml(solutions: typing.List[lloovia.Solution]):
+    '''Converts a list of lloovia solutions to a YAML string.'''
+    return _Converter().solutions_to_yaml(solutions)
+
+class _Converter(object):
     """Converts lloovia problems and solutions to YAML."""
     def __init__(self):
         self._workloads_lines = []
@@ -31,10 +39,12 @@ class Converter(object):
                 'Problems:', *self._problem_lines]
 
     def problems_to_yaml(self, problems: typing.List[lloovia.Problem]):
+        '''Converts a list of lloovia problems to a YAML string.'''
         self._process_problems(problems)
         return "\n".join(self._compose_problem_lines())
 
     def solutions_to_yaml(self, solutions: typing.List[lloovia.Solution]):
+        '''Converts a list of lloovia solutions to a YAML string.'''
         problems = []
         for solution in solutions:
             problems.append(solution.problem)
@@ -84,11 +94,11 @@ class Converter(object):
             '      algorithm:',
             '        lloovia:',
             '          binning: {}'.format(binning),
-            '          status: {}'.format(Converter._adapt_status(stats.status)),
+            '          status: {}'.format(_Converter._adapt_status(stats.status)),
             *binning_lines,
-            '          frac_gap: {}'.format(Converter._none_to_null(stats.frac_gap)),
-            '          max_seconds: {}'.format(Converter._none_to_null(stats.max_seconds)),
-            '          lower_bound: {}'.format(Converter._none_to_null(stats.lower_bound)),
+            '          frac_gap: {}'.format(_Converter._none_to_null(stats.frac_gap)),
+            '          max_seconds: {}'.format(_Converter._none_to_null(stats.max_seconds)),
+            '          lower_bound: {}'.format(_Converter._none_to_null(stats.lower_bound)),
             ])
 
     @staticmethod
@@ -96,10 +106,10 @@ class Converter(object):
         stats = solution.solving_stats
 
         return ([
-            '      optimal_cost: {}'.format(Converter._none_to_null(stats.optimal_cost)),
+            '      optimal_cost: {}'.format(_Converter._none_to_null(stats.optimal_cost)),
             '      creation_time: {}'.format(stats.creation_time),
             '      solving_time: {}'.format(stats.solving_time),
-            *Converter._generate_algorithm_lines(solution)
+            *_Converter._generate_algorithm_lines(solution)
             ])
 
     @staticmethod
@@ -107,7 +117,7 @@ class Converter(object):
         stats = solution.solving_stats
 
         return ([
-            '      optimal_cost: {}'.format(Converter._none_to_null(stats.global_cost)),
+            '      optimal_cost: {}'.format(_Converter._none_to_null(stats.global_cost)),
             '      creation_time: {}'.format(stats.global_creation_time),
             '      solving_time: {}'.format(stats.global_solving_time),
             '      status: {}'.format(stats.global_status)

@@ -62,13 +62,11 @@ def convert(command, root_dir, base_filename):
                 raise ValueError('Not a lloovia problem or solution. Type: {}'.format(
                     type(obj)))
 
-            converter = lloovia_yaml.Converter()
-
             if isinstance(obj, lloovia.Solution):
                 if command == 'solutions':
-                    yaml_output = converter.solutions_to_yaml([obj])
+                    yaml_output = lloovia_yaml.solutions_to_yaml([obj])
                 elif command == 'problems':
-                    yaml_output = converter.problems_to_yaml([obj.problem])
+                    yaml_output = lloovia_yaml.problems_to_yaml([obj.problem])
             else: # It is a lloovia.Problem
                 if command == 'solutions':
                     raise ValueError('Cannot save a Problem as Solution')

@@ -35,8 +35,7 @@ class TestLlooviaYaml(unittest.TestCase):
     @staticmethod
     def convert_and_validate_solution(solution_phase_i):
         '''Converts a solution to YAML and validates that the schema is followed.'''
-        converter = lloovia_yaml.Converter()
-        yaml_output = converter.solutions_to_yaml([solution_phase_i])
+        yaml_output = lloovia_yaml.solutions_to_yaml([solution_phase_i])
 
         converted_yaml = yaml.safe_load(yaml_output)
 
@@ -53,8 +52,7 @@ class TestLlooviaYaml(unittest.TestCase):
 
         self.prepare_problems(workload_phase_i, workload_phase_ii)
 
-        converter = lloovia_yaml.Converter()
-        yaml_output = converter.problems_to_yaml(
+        yaml_output = lloovia_yaml.problems_to_yaml(
             [self.problem_phase_i, self.problem_phase_ii])
 
         converted_yaml = yaml.safe_load(yaml_output)
