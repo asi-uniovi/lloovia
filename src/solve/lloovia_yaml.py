@@ -66,7 +66,7 @@ class Converter(object):
         return original_status
 
     @staticmethod
-    def _generate_solving_stats_lines(solution):
+    def _generate_algorithm_lines(solution):
         stats = solution.solving_stats
 
         binning = stats.max_bins != None
@@ -81,9 +81,6 @@ class Converter(object):
             binning_lines = []
 
         return ([
-            '      optimal_cost: {}'.format(Converter._none_to_null(stats.optimal_cost)),
-            '      creation_time: {}'.format(stats.creation_time),
-            '      solving_time: {}'.format(stats.solving_time),
             '      algorithm:',
             '        lloovia:',
             '          binning: {}'.format(binning),
@@ -92,7 +89,28 @@ class Converter(object):
             '          frac_gap: {}'.format(Converter._none_to_null(stats.frac_gap)),
             '          max_seconds: {}'.format(Converter._none_to_null(stats.max_seconds)),
             '          lower_bound: {}'.format(Converter._none_to_null(stats.lower_bound)),
+            ])
 
+    @staticmethod
+    def _generate_phase_i_solving_stats_lines(solution):
+        stats = solution.solving_stats
+
+        return ([
+            '      optimal_cost: {}'.format(Converter._none_to_null(stats.optimal_cost)),
+            '      creation_time: {}'.format(stats.creation_time),
+            '      solving_time: {}'.format(stats.solving_time),
+            *Converter._generate_algorithm_lines(solution)
+            ])
+
+    @staticmethod
+    def _generate_global_solving_stats_lines(solution):
+        stats = solution.solving_stats
+
+        return ([
+            '      optimal_cost: {}'.format(Converter._none_to_null(stats.global_cost)),
+            '      creation_time: {}'.format(stats.global_creation_time),
+            '      solving_time: {}'.format(stats.global_solving_time),
+            '      status: {}'.format(stats.global_status)
             ])
 
     def _generate_reserved_allocation_lines(self, solution):
@@ -155,37 +173,56 @@ class Converter(object):
 
         return result
 
-    def _process_solution(self, solution):
-        solution_id = self._solution_id_factory.get_id_from_object(solution)
+    def _generate_solution_ii_particular_lines(self, solution):
+        result = ([
+            '    global_solving_stats:', *self._generate_global_solving_stats_lines(solution)
+            ])
 
+        status = solution.solving_stats.global_status
+        if status not in ['infeasible', 'unknown_error', 'aborted']:
+            result.extend([
+                '    allocation:', *self._generate_allocation_lines(solution)
+                ])
+
+        return result
+
+
+    def _generate_solution_i_particular_lines(self, solution):
+        result = ([
+            '    solving_stats:', *self._generate_phase_i_solving_stats_lines(solution),
+            '    reserved_allocation:', *self._generate_reserved_allocation_lines(solution)
+            ])
+
+        status = solution.solving_stats.status
+        if status not in ['infeasible', 'unknown_error', 'aborted']:
+            result.extend([
+                '    allocation:', *self._generate_allocation_lines(solution)
+                ])
+
+        return result
+
+    def _process_solution(self, solution):
         if isinstance(solution, lloovia.SolutionII):
             phase = 2
+            particular_lines = self._generate_solution_ii_particular_lines(solution)
         elif isinstance(solution, lloovia.Solution):
             # Solution is used instead of SolutionI because, although lloovia defines
             # a SolutionI class, it never uses it
             phase = 1
+            particular_lines = self._generate_solution_i_particular_lines(solution)
         else:
             raise ValueError('Solution should be of type SolutionI or SolutionII. It is {}'.format(
                 type(solution)))
 
+        solution_id = self._solution_id_factory.get_id_from_object(solution)
         problem_id = self._problem_id_factory.get_id_from_object(solution.problem)
 
-        # TODO: handle unfeasible solutions, phase II solutions, etc.
-        self._solution_lines.extend([
+        self._solution_lines = ([
             '  - &{}'.format(solution_id),
             '    id: {}'.format(solution_id),
             '    phase: {}'.format(phase),
             '    problem: *{}'.format(problem_id),
-            '    solving_stats:',
-            *Converter()._generate_solving_stats_lines(solution),
-            '    reserved_allocation:',
-            *self._generate_reserved_allocation_lines(solution)
-            ])
-
-        status = solution.solving_stats.status
-        if status != 'infeasible' and status != 'unknown_error' and status != 'aborted':
-            self._solution_lines.extend([
-                '    allocation:', *self._generate_allocation_lines(solution)
+            *particular_lines,
             ])
 
     def _compose_solution_lines(self):

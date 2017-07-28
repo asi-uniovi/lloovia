@@ -95,7 +95,8 @@ class TestLlooviaYaml(unittest.TestCase):
         TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
 
     def test_infeasible_solution_to_yaml(self):
-        '''Tests that solutions_to_yamls() can create a valid YAML file with infeasible solutions.'''
+        '''Tests that solutions_to_yamls() can create a valid YAML file with infeasible
+        solutions.'''
         workload_phase_i = [1, 22, 5, 6, 10, 20, 50, 2000]
         workload_phase_ii = [5, 2, 9, 9, 99, 999, 88, 60]
 
@@ -146,6 +147,38 @@ class TestLlooviaYaml(unittest.TestCase):
 
         TestLlooviaYaml.convert_and_validate_solution(solution_phase_i)
 
+    def test_optimal_solution_phase2_to_yaml(self):
+        '''Tests that solutions_to_yamls() can create a valid YAML file with a phaseII
+        solution where all the individual statuses are trivial or optimal.'''
+        workload_phase_i = [1, 22, 5, 6, 10, 20, 50, 20]
+        workload_phase_ii = [5, 2, 9, 9, 11, 5, 11, 50]
+
+        self.prepare_problems(workload_phase_i, workload_phase_ii)
+
+        allocation = {
+            self.instances[0]: {0: 4.0, 1: 4.0, 2: 4.0, 3: 4.0, 4: 4.0, 5: 4.0, 6: 4.0, 7: 4.0},
+            self.instances[1]: {0: 0.0, 1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0, 7: 5.0},
+            }
+
+        allocation_df = pd.DataFrame.from_dict(allocation)
+
+        solving_stats = lloovia.SolvingStatsII(workload=workload_phase_ii,
+                                               default_frac_gap=None,
+                                               default_max_seconds=None,
+                                               global_creation_time=0.007148156645641279,
+                                               global_solving_time=0.03285847801969055,
+                                               global_status='optimal',
+                                               global_cost=22.5,
+                                               individual_status=lloovia.StatusList(
+                                                   ['trivial']*7 + ['optimal'])
+                                              )
+
+        solution_phase_ii = lloovia.SolutionII(
+            problem=self.problem_phase_i,
+            solving_stats=solving_stats,
+            allocation=allocation_df)
+
+        TestLlooviaYaml.convert_and_validate_solution(solution_phase_ii)
 
 if __name__ == '__main__':
     unittest.main()
