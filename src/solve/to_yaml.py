@@ -59,7 +59,8 @@ def convert(command, root_dir, base_filename):
             obj = pickle.load(file)
 
             if not (isinstance(obj, lloovia.Solution) or isinstance(obj, lloovia.Problem)):
-                raise ValueError('Not a lloovia problem or solution')
+                raise ValueError('Not a lloovia problem or solution. Type: {}'.format(
+                    type(obj)))
 
             converter = lloovia_yaml.Converter()
 
